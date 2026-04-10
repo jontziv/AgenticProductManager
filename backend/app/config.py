@@ -59,7 +59,8 @@ class Settings(BaseSettings):
     # ── CORS ──────────────────────────────────────────────────────────────────
     # Comma-separated list of allowed origins, e.g.
     # "https://pm-sidekick.vercel.app,https://pm-sidekick-preview.vercel.app"
-    allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+    # Defaults to "*" (all origins). Auth is Bearer token — no cookies used.
+    allowed_origins: str = "*"
 
     # ── Rate limiting ─────────────────────────────────────────────────────────
     api_rate_limit_per_minute: int = 60
