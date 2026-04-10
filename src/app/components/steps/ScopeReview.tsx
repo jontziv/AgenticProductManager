@@ -31,7 +31,7 @@ export function ScopeReview() {
   const [error, setError] = useState<string | null>(null);
 
   const isProcessing = !state.run ||
-    state.run.status === "pending" ||
+    state.run.status === "queued" ||
     state.run.status === "processing";
 
   // Cycle processing step labels while waiting
