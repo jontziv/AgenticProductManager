@@ -10,7 +10,7 @@ router = APIRouter()
 logger = structlog.get_logger(__name__)
 
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/exports", status_code=status.HTTP_202_ACCEPTED)
 async def request_export(body: ExportRequest, current_user: CurrentUser) -> dict:
     run = await RunsDB.get(body.run_id, current_user.user_id)
     if not run:
@@ -33,7 +33,7 @@ async def request_export(body: ExportRequest, current_user: CurrentUser) -> dict
 
 
 @router.get("/runs/{run_id}/exports", response_model=list[ExportResponse])
-async def list_exports(run_id: str, current_user: CurrentUser) -> list[ExportResponse]:
+async def list_exports(run_id: str, current_user: CurrentUser) -> list[ExportResponse]:  # noqa: E501
     run = await RunsDB.get(run_id, current_user.user_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")

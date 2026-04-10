@@ -42,17 +42,28 @@ class QAReportResponse(BaseModel):
 
     @classmethod
     def from_db(cls, row: dict[str, Any]) -> "QAReportResponse":
-        report_data = row.get("report_json", {})
+        import json as _json
+
+        def _load_jsonb(val: Any) -> list:
+            if val is None:
+                return []
+            if isinstance(val, str):
+                try:
+                    return _json.loads(val)
+                except Exception:
+                    return []
+            return val if isinstance(val, list) else []
+
         return cls(
             id=str(row["id"]),
             run_id=str(row["run_id"]),
-            overall_score=row.get("overall_score", 0),
-            max_score=row.get("max_score", 100),
-            pass_rate=row.get("pass_rate", 0),
-            critical_issues=row.get("critical_issues", 0),
-            warnings=row.get("warnings", 0),
-            export_ready=row.get("export_ready", False),
-            checks=report_data.get("checks", []),
-            remediation_tasks=report_data.get("remediation_tasks", []),
+            overall_score=row.get("overall_score") or 0,
+            max_score=row.get("max_score") or 100,
+            pass_rate=row.get("pass_rate") or 0,
+            critical_issues=row.get("critical_issues") or 0,
+            warnings=row.get("warnings") or 0,
+            export_ready=bool(row.get("export_ready", False)),
+            checks=_load_jsonb(row.get("checks")),
+            remediation_tasks=_load_jsonb(row.get("remediation_tasks")),
             created_at=row["created_at"],
         )

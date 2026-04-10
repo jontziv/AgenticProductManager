@@ -26,7 +26,7 @@ export type ArtifactType =
   | "qa_report"
   | "export_pack";
 
-export type ArtifactStatus = "draft" | "stale" | "approved" | "rejected";
+export type ArtifactStatus = "generating" | "ready" | "stale" | "failed";
 
 export interface ApiError {
   detail: string;
@@ -48,7 +48,6 @@ export interface IntakeRunSummary {
 
 export interface IntakeRun {
   id: string;
-  workspace_id: string;
   user_id: string;
   title: string;
   status: RunStatus;

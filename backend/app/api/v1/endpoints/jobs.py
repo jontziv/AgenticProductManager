@@ -9,7 +9,7 @@ router = APIRouter()
 logger = structlog.get_logger(__name__)
 
 
-@router.get("/{job_id}", response_model=JobResponse)
+@router.get("/jobs/{job_id}", response_model=JobResponse)
 async def get_job(job_id: str, current_user: CurrentUser) -> JobResponse:
     job = await JobsDB.get(job_id)
     if not job:
@@ -21,7 +21,7 @@ async def get_job(job_id: str, current_user: CurrentUser) -> JobResponse:
     return JobResponse.from_db(job)
 
 
-@router.post("/{job_id}/cancel", status_code=204)
+@router.post("/jobs/{job_id}/cancel", status_code=204)
 async def cancel_job(job_id: str, current_user: CurrentUser) -> None:
     job = await JobsDB.get(job_id)
     if not job:
@@ -36,7 +36,7 @@ async def cancel_job(job_id: str, current_user: CurrentUser) -> None:
 
 
 @router.get("/runs/{run_id}/jobs", response_model=list[JobResponse])
-async def list_run_jobs(run_id: str, current_user: CurrentUser) -> list[JobResponse]:
+async def list_run_jobs(run_id: str, current_user: CurrentUser) -> list[JobResponse]:  # noqa: E501
     run = await RunsDB.get(run_id, current_user.user_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -45,7 +45,7 @@ async def list_run_jobs(run_id: str, current_user: CurrentUser) -> list[JobRespo
 
 
 @router.get("/runs/{run_id}/jobs/latest", response_model=JobResponse)
-async def get_latest_job(run_id: str, current_user: CurrentUser) -> JobResponse:
+async def get_latest_job(run_id: str, current_user: CurrentUser) -> JobResponse:  # noqa: E501
     run = await RunsDB.get(run_id, current_user.user_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")

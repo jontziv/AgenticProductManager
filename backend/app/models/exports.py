@@ -32,7 +32,7 @@ class ExportResponse(BaseModel):
             id=str(row["id"]),
             run_id=str(row["run_id"]),
             format=row["format"],
-            file_url=row["file_url"],
-            file_size_bytes=row.get("file_size_bytes", 0),
-            generated_at=row["generated_at"],
+            file_url=row.get("download_url") or "",
+            file_size_bytes=row.get("file_size_bytes") or 0,
+            generated_at=row.get("updated_at") or row.get("created_at"),
         )
