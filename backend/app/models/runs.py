@@ -61,6 +61,7 @@ class RunResponse(BaseModel):
     constraints: str | None
     idea_type: str | None
     langgraph_thread_id: str | None
+    missing_info: list[str] = []
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None
@@ -73,6 +74,17 @@ class RunResponse(BaseModel):
         artifacts: list[dict[str, Any]] | None = None,
     ) -> "RunResponse":
         from app.models.artifacts import ArtifactResponse  # avoid circular
+        import json as _json
+        raw_missing = row.get("missing_info")
+        if isinstance(raw_missing, str):
+            try:
+                missing_info = _json.loads(raw_missing)
+            except Exception:
+                missing_info = []
+        elif isinstance(raw_missing, list):
+            missing_info = raw_missing
+        else:
+            missing_info = []
         return cls(
             id=str(row["id"]),
             user_id=str(row["user_id"]),
@@ -85,6 +97,7 @@ class RunResponse(BaseModel):
             constraints=row.get("constraints"),
             idea_type=row.get("idea_type"),
             langgraph_thread_id=row.get("langgraph_thread_id"),
+            missing_info=missing_info,
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             completed_at=row.get("completed_at"),

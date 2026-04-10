@@ -53,6 +53,7 @@ export interface IntakeRun {
   status: RunStatus;
   graph_thread_id?: string;
   current_node?: string;
+  missing_info: string[];
   created_at: string;
   updated_at: string;
   source_documents: SourceDocument[];

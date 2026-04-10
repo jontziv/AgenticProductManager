@@ -77,9 +77,14 @@ export function ScopeReview() {
     navigate("/new");
   };
 
-  const problemFraming = state.artifacts["problem_framing"]?.content as ProblemFramingArtifact | undefined;
-  const personas = state.artifacts["personas"]?.content as PersonasArtifact | undefined;
-  const mvpScope = state.artifacts["mvp_scope"]?.content as MvpScopeArtifact | undefined;
+  const artifacts = state.artifacts ?? {};
+  const problemFraming = artifacts["problem_framing"]?.content as ProblemFramingArtifact | undefined;
+  const personas = artifacts["personas"]?.content as PersonasArtifact | undefined;
+  const mvpScope = artifacts["mvp_scope"]?.content as MvpScopeArtifact | undefined;
+
+  // Run completed but the LLM flagged missing information — no artifacts generated
+  const missingInfo = state.run?.missing_info ?? [];
+  const needsMoreInfo = !isProcessing && missingInfo.length > 0 && !problemFraming;
 
   if (error) {
     return (
@@ -114,14 +119,14 @@ export function ScopeReview() {
           <Sparkles className="h-4 w-4 text-primary" />
           <span>{PROCESSING_STEPS[processingStep]}...</span>
         </div>
-        {state.run?.missing_info_flags?.length ? (
+        {state.run?.missing_info?.length ? (
           <div className="mt-8 max-w-md rounded-xl border border-chart-4/20 bg-chart-4/5 p-4">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium text-chart-4">
               <AlertTriangle className="h-4 w-4" />
               Proceeding with assumptions
             </div>
             <ul className="space-y-1">
-              {state.run.missing_info_flags.map((flag, i) => (
+              {state.run.missing_info.map((flag, i) => (
                 <li key={i} className="text-sm text-muted-foreground">• {flag}</li>
               ))}
             </ul>
@@ -132,6 +137,34 @@ export function ScopeReview() {
   }
 
   if (!problemFraming || !personas || !mvpScope) {
+    if (needsMoreInfo) {
+      return (
+        <div className="flex max-w-2xl flex-col items-center justify-center py-20">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-chart-4/10">
+            <AlertTriangle className="h-6 w-6 text-chart-4" />
+          </div>
+          <h2 className="mb-2 text-center">More information needed</h2>
+          <p className="mb-4 text-center text-sm text-muted-foreground">
+            The AI couldn't generate a complete analysis. Please resubmit with more detail on:
+          </p>
+          <ul className="mb-6 w-full max-w-sm space-y-2">
+            {missingInfo.map((flag, i) => (
+              <li key={i} className="flex items-start gap-2 rounded-lg border border-chart-4/20 bg-chart-4/5 px-3 py-2 text-sm text-chart-4">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {flag}
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm transition-colors hover:bg-accent"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to intake
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <RefreshCw className="mb-4 h-8 w-8 text-muted-foreground" />

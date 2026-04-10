@@ -119,13 +119,28 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
             remediation_tasks=qa.get("remediation_tasks", []),
         )
 
-    # Update run — only columns that actually exist in the schema
+    # If the graph exited early because of missing info, surface that clearly.
+    # The run stays in needs_review and stores the flags so the UI can prompt
+    # the user to resubmit with more detail.
+    missing_flags: list[str] = final_state.get("missing_info_flags") or []  # type: ignore[call-overload]
+    can_proceed: bool = bool(final_state.get("can_proceed", True))  # type: ignore[call-overload]
+
+    if not can_proceed or (missing_flags and not any(final_state.get(k) for k in artifact_keys)):
+        # Early exit — no artifacts generated
+        idea_type = final_state.get("idea_classification")  # type: ignore[call-overload]
+        extra: dict[str, Any] = {"langgraph_thread_id": run_id, "missing_info": json.dumps(missing_flags)}
+        if idea_type:
+            extra["idea_type"] = idea_type
+        await RunsDB.update_status(run_id, "needs_review", **extra)
+        log.info("orchestration_needs_more_info", missing=missing_flags)
+        return
+
+    # Full run completed — update status
     idea_type = final_state.get("idea_classification")  # type: ignore[call-overload]
-    await RunsDB.update_status(
-        run_id, "needs_review",
-        langgraph_thread_id=run_id,
-        **({"idea_type": idea_type} if idea_type else {}),
-    )
+    extra_full: dict[str, Any] = {"langgraph_thread_id": run_id}
+    if idea_type:
+        extra_full["idea_type"] = idea_type
+    await RunsDB.update_status(run_id, "needs_review", **extra_full)
 
     log.info("orchestration_complete", artifacts=len(artifact_keys))
 
