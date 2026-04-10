@@ -4,7 +4,6 @@ FastAPI dependency injection: auth, DB, settings.
 
 from typing import Annotated
 
-import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -26,19 +25,17 @@ async def get_current_user(
 ) -> AuthenticatedUser:
     token = credentials.credentials
     try:
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
-        user_id: str | None = payload.get("sub")
-        if not user_id:
+        # Use Supabase admin client to validate the token — works for both
+        # HS256 (legacy) and ES256 (current default) JWT algorithms.
+        supabase = get_supabase_client()
+        response = supabase.auth.get_user(token)
+        if not response or not response.user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-        return AuthenticatedUser(user_id=user_id, email=payload.get("email"))
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
-    except jwt.InvalidTokenError:
+        user = response.user
+        return AuthenticatedUser(user_id=str(user.id), email=user.email)
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 
