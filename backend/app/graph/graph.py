@@ -96,7 +96,7 @@ def build_graph() -> Any:
     builder.add_node("remediation_router", remediation_router_node)
     builder.add_node("human_review_gate", human_review_gate_node)
     builder.add_node("approval_versioning", approval_versioning_node)
-    builder.add_node("export_pack", export_pack_node)
+    builder.add_node("build_export_pack", export_pack_node)
 
     # ── Entry point ──────────────────────────────────────────────────────────
     builder.set_entry_point("ingest_input")
@@ -143,8 +143,8 @@ def build_graph() -> Any:
             END: END,
         },
     )
-    builder.add_edge("approval_versioning", "export_pack")
-    builder.add_edge("export_pack", END)
+    builder.add_edge("approval_versioning", "build_export_pack")
+    builder.add_edge("build_export_pack", END)
 
     # ── Compile with checkpointing and human-in-the-loop ─────────────────────
     # MemorySaver for local/test; swap for PostgresSaver in production
