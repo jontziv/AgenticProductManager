@@ -1,0 +1,16 @@
+-r requirements.txt
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+pytest-timeout==2.3.1
+httpx==0.28.1          # async test client (already in main, re-listed for clarity)
+asgi-lifespan==2.1.0
+
+# ── Type checking ────────────────────────────────────────────────────────────
+mypy==1.14.0
+types-PyJWT==1.7.1
+
+# ── Linting / formatting ──────────────────────────────────────────────────────
+ruff==0.9.1

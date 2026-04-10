@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "pm-sidekick-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+# ── Ruff ─────────────────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app", "worker", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]   # line length handled by formatter
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "worker"]
+
+# ── Mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+exclude = ["tests/", "migrations/"]
+
+# ── Pytest ───────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-p no:cov"
+markers = [
+    "e2e: end-to-end tests that require a running DB",
+    "integration: integration tests that require a running DB",
+    "unit: pure unit tests with no external dependencies",
+]
+timeout = 30
+
+# ── Coverage ─────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["app", "worker"]
+omit = ["tests/*", "migrations/*"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 60
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

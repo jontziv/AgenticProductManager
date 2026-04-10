@@ -1,0 +1,64 @@
+name: Deploy Frontend (Vercel)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.ts"
+      - "package*.json"
+      - "tsconfig*.json"
+      - "tailwind.config.*"
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false   # Don't cancel in-flight production deploys
+
+jobs:
+  deploy:
+    name: Deploy to Vercel production
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: "--prod"
+          working-directory: .
+
+      - name: Smoke check production
+        run: |
+          sleep 15
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.VITE_API_BASE_URL }}/healthz)
+          if [ "$STATUS" != "200" ]; then
+            echo "Health check failed: $STATUS"
+            exit 1
+          fi
+          echo "Production health check passed"

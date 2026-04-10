@@ -1,0 +1,102 @@
+# ── Secrets & environment ──────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# ── Node / Frontend ────────────────────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+build/
+.next/
+.nuxt/
+.output/
+.vercel/
+.cache/
+*.local
+
+# ── Python / Backend ───────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.venv/
+backend/venv/
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+*.egg
+.eggs/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+coverage/
+*.cover
+*.log
+*.db
+*.sqlite3
+*.sqlite
+
+# ── Supabase ───────────────────────────────────────────────────────────────────
+supabase/.branches/
+supabase/.temp/
+
+# ── OS ─────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── Editor ─────────────────────────────────────────────────────────────────────
+.idea/
+*.swp
+*.swo
+*~
+.vscode/settings.json
+.vscode/launch.json
+
+# ── Logs & output ──────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Test output ────────────────────────────────────────────────────────────────
+test-results/
+playwright-report/
+playwright/.cache/
+junit.xml
+*.junit.xml
+
+# ── Exports / generated artifacts ──────────────────────────────────────────────
+exports/
+generated/
+tmp/
+temp/
+
+# ── LangGraph / LangSmith ──────────────────────────────────────────────────────
+langgraph.db
+checkpoints.db

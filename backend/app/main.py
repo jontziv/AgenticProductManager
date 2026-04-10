@@ -1,0 +1,117 @@
+"""
+FastAPI application entry point.
+"""
+
+import logging
+import time
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
+import structlog
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.api.v1.router import api_router
+from app.config import get_settings
+
+settings = get_settings()
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+
+structlog.configure(
+    processors=[
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.JSONRenderer(),
+    ],
+    wrapper_class=structlog.BoundLogger,
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(),
+)
+
+logger = structlog.get_logger(__name__)
+logging.basicConfig(level=settings.log_level)
+
+
+# ── LangSmith optional setup ──────────────────────────────────────────────────
+
+if settings.langsmith_enabled:
+    import os
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_API_KEY"] = settings.langsmith_api_key
+    os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
+
+
+# ── Lifespan ──────────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    logger.info("startup", env=settings.app_env)
+    yield
+    logger.info("shutdown")
+
+
+# ── App ───────────────────────────────────────────────────────────────────────
+
+app = FastAPI(
+    title="PM Sidekick API",
+    version="0.1.0",
+    docs_url="/docs" if not settings.is_production else None,
+    redoc_url=None,
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in settings.allowed_origins.split(",") if o.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ── Request logging middleware ────────────────────────────────────────────────
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next: object) -> Response:
+    start = time.perf_counter()
+    response: Response = await call_next(request)  # type: ignore[operator]
+    duration_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "http_request",
+        method=request.method,
+        path=request.url.path,
+        status=response.status_code,
+        duration_ms=round(duration_ms, 2),
+    )
+    return response
+
+
+# ── Error handlers ────────────────────────────────────────────────────────────
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("unhandled_exception", path=request.url.path, exc_info=exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "code": "INTERNAL_ERROR"},
+    )
+
+
+# ── Routes ────────────────────────────────────────────────────────────────────
+
+app.include_router(api_router, prefix="/api/v1")
+
+
+@app.get("/healthz", include_in_schema=False)
+async def health() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/readyz", include_in_schema=False)
+async def readiness() -> dict:
+    # Could add DB connectivity check here
+    return {"status": "ready"}
