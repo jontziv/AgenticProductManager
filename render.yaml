@@ -3,10 +3,12 @@ services:
   - type: web
     name: pm-sidekick
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    # Build context is the repo root so the Dockerfile can access both
-    # the frontend source (package.json, src/) and the backend (backend/).
-    dockerContext: .
+    # Render root directory is set to "backend/" in the dashboard.
+    # dockerfilePath is relative to that root → backend/Dockerfile.
+    # dockerContext ".." goes one level up to the repo root so the Dockerfile
+    # can access both frontend source (package.json, src/) and backend code.
+    dockerfilePath: ./Dockerfile
+    dockerContext: ..
     envVars:
       - key: APP_ENV
         value: production
