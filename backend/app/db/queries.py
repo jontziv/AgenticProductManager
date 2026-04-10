@@ -54,6 +54,17 @@ class RunsDB:
         return dict(row) if row else None
 
     @staticmethod
+    async def get_by_id(run_id: str) -> dict[str, Any] | None:
+        """Service-level fetch — no user_id filter (worker/internal use only)."""
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM intake_runs WHERE id = $1",
+                run_id,
+            )
+        return dict(row) if row else None
+
+    @staticmethod
     async def create(
         run_id: str,
         user_id: str,
