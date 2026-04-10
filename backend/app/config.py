@@ -25,7 +25,8 @@ class Settings(BaseSettings):
 
     # ── Groq ──────────────────────────────────────────────────────────────────
     groq_api_key: str
-    groq_base_url: str = "https://api.groq.com/openai/v1"
+    # The Groq SDK appends /openai/v1 internally — base_url must be the root only.
+    groq_base_url: str = "https://api.groq.com"
 
     # Model routing defaults
     groq_model_fast: str = "llama-3.1-8b-instant"
