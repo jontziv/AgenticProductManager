@@ -47,7 +47,7 @@ services:
       - key: EMBEDDED_WORKER
         value: "true"
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: "*"
     healthCheckPath: /healthz
     autoDeploy: true
 
@@ -64,9 +64,9 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_SUPABASE_URL
-        sync: false
+        value: https://cvrxuvyiequsheqvszhu.supabase.co
       - key: VITE_SUPABASE_ANON_KEY
-        sync: false
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cnh1dnlpZXF1c2hlcXZzemh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIyMjgsImV4cCI6MjA5MTM4ODIyOH0.JkdJXN6HRzjRxqp_0AZOezkCMG-xZ-6vQ7PHq2W0b8U
       - key: VITE_API_BASE_URL
         value: https://agenticproductmanager.onrender.com/api/v1
     autoDeploy: true

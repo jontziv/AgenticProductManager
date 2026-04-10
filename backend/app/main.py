@@ -87,10 +87,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_cors_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
+_allow_all_origins = "*" in _cors_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.allowed_origins.split(",") if o.strip()],
-    allow_credentials=True,
+    allow_origins=["*"] if _allow_all_origins else _cors_origins,
+    # allow_credentials must be False when allow_origins=["*"] (browser spec)
+    # Auth is Bearer token in Authorization header — cookies are not used.
+    allow_credentials=not _allow_all_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
