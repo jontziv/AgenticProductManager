@@ -50,3 +50,23 @@ services:
         sync: false
     healthCheckPath: /healthz
     autoDeploy: true
+
+  # ── Frontend static site ───────────────────────────────────────────────────
+  - type: web
+    name: pm-sidekick-frontend
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_API_BASE_URL
+        value: https://agenticproductmanager.onrender.com
+    autoDeploy: true
