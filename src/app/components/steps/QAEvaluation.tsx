@@ -150,7 +150,7 @@ export function QAEvaluation() {
                 <span className="text-muted-foreground">/ {report.maxScore}</span>
               </div>
               <div className="mt-1 text-sm text-muted-foreground">
-                {report.passRate.toFixed(1)}% pass rate
+                {report.passRate?.toFixed(1) ?? "0"}% pass rate
               </div>
             </div>
             <div>

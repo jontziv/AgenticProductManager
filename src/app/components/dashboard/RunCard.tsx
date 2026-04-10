@@ -96,7 +96,7 @@ export function RunCard({ run }: RunCardProps) {
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>{run.artifact_count} artifacts</span>
-          {run.qa_score !== undefined && (
+          {run.qa_score != null && (
             <span>QA {run.qa_score.toFixed(0)}%</span>
           )}
           <span>{format(new Date(run.created_at), "MMM d, yyyy")}</span>
