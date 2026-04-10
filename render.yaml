@@ -7,8 +7,8 @@ services:
     # dockerfilePath is relative to that root → backend/Dockerfile.
     # dockerContext ".." goes one level up to the repo root so the Dockerfile
     # can access both frontend source (package.json, src/) and backend code.
-    dockerfilePath: ./Dockerfile
-    dockerContext: ..
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
     envVars:
       - key: APP_ENV
         value: production
