@@ -68,5 +68,5 @@ services:
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
       - key: VITE_API_BASE_URL
-        value: https://agenticproductmanager.onrender.com
+        value: https://agenticproductmanager.onrender.com/api/v1
     autoDeploy: true
