@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useWorkflow } from "../../context/WorkflowContext";
 import { runsApi } from "../../api/runs";
@@ -8,9 +8,10 @@ import type {
   ProblemFramingArtifact,
   PersonasArtifact,
   MvpScopeArtifact,
+  AgentLogEntry,
 } from "../../types/api";
 import {
-  Loader2, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, RefreshCw, X,
+  Loader2, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, RefreshCw, X, CheckCircle2,
 } from "lucide-react";
 
 const PROCESSING_STEPS = [
@@ -29,6 +30,8 @@ export function ScopeReview() {
   const { state, setRun, setArtifacts, setCurrentStep } = useWorkflow();
   const [processingStep, setProcessingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [agentLogs, setAgentLogs] = useState<AgentLogEntry[]>([]);
+  const logEndRef = useRef<HTMLDivElement>(null);
 
   const handleCancelRun = async () => {
     if (!runId) return;
@@ -44,6 +47,24 @@ export function ScopeReview() {
   const isProcessing = !state.run ||
     state.run.status === "queued" ||
     state.run.status === "processing";
+
+  // Poll the run every 3 s while processing to get live agent logs
+  useEffect(() => {
+    if (!isProcessing || !runId) return;
+    const id = setInterval(async () => {
+      try {
+        const run = await runsApi.get(runId);
+        setRun(run);
+        if (run.run_logs?.length) setAgentLogs(run.run_logs);
+      } catch { /* swallow — job polling handles the error path */ }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [isProcessing, runId]);
+
+  // Auto-scroll log panel to bottom on new entries
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [agentLogs]);
 
   // Cycle processing step labels while waiting
   useEffect(() => {
@@ -137,6 +158,34 @@ export function ScopeReview() {
           <X className="h-3.5 w-3.5" />
           Stop &amp; delete this run
         </button>
+
+        {/* Live agent activity log */}
+        {agentLogs.length > 0 && (
+          <div className="mt-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-sm">
+            <div className="border-b border-border px-4 py-2.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent activity</span>
+            </div>
+            <div className="max-h-52 overflow-y-auto px-4 py-3 space-y-2">
+              {agentLogs.map((entry, i) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-medium text-foreground">
+                      {entry.node.replace(/_/g, " ")}
+                    </span>
+                    <span className="mx-1.5 text-muted-foreground/40 text-xs">&mdash;</span>
+                    <span className="text-xs text-muted-foreground">{entry.summary}</span>
+                  </div>
+                  <span className="shrink-0 text-[10px] text-muted-foreground/50">
+                    {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  </span>
+                </div>
+              ))}
+              <div ref={logEndRef} />
+            </div>
+          </div>
+        )}
+
         {state.run?.missing_info?.length ? (
           <div className="mt-8 max-w-md rounded-xl border border-chart-4/20 bg-chart-4/5 p-4">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium text-chart-4">

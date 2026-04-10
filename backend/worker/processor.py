@@ -4,6 +4,7 @@ One processor per job type — clean separation.
 """
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -61,6 +62,70 @@ async def process_job(job: dict[str, Any]) -> None:
             log.warning("job_will_retry", retry=retry_count)
 
 
+def _node_summary(node_name: str, updates: dict[str, Any]) -> str:
+    """Return a one-line human-readable summary of what a graph node produced."""
+    match node_name:
+        case "ingest_input":
+            return "Input normalized and brief extracted"
+        case "detect_missing_info":
+            flags = updates.get("missing_info_flags") or []
+            can = updates.get("can_proceed", True)
+            if not can and flags:
+                return f"Gaps detected: {', '.join(str(f) for f in flags[:3])}"
+            return "No critical gaps — proceeding with full analysis"
+        case "classify_idea":
+            idea_type = updates.get("idea_classification") or "?"
+            return f"Idea classified as '{idea_type}'"
+        case "choose_pattern":
+            pattern = updates.get("selected_pattern") or "?"
+            return f"Product pattern selected: {pattern}"
+        case "create_problem_framing":
+            pf = updates.get("problem_framing") or {}
+            stmt = (pf.get("problem_statement") or "")[:120]
+            return f"Problem framed: {stmt}" if stmt else "Problem framing complete"
+        case "generate_personas":
+            count = len((updates.get("personas") or {}).get("personas", []))
+            return f"{count} persona{'s' if count != 1 else ''} generated"
+        case "generate_mvp_scope":
+            count = len((updates.get("mvp_scope") or {}).get("in_scope", []))
+            return f"MVP scope defined: {count} in-scope item{'s' if count != 1 else ''}"
+        case "generate_success_metrics":
+            m = updates.get("success_metrics") or {}
+            count = len(m.get("leading", [])) + len(m.get("lagging", []))
+            return f"Success metrics defined: {count} metric{'s' if count != 1 else ''}"
+        case "generate_user_stories":
+            count = len((updates.get("user_stories") or {}).get("stories", []))
+            return f"{count} user stor{'ies' if count != 1 else 'y'} created"
+        case "generate_backlog":
+            count = len((updates.get("backlog_items") or {}).get("items", []))
+            return f"{count} backlog item{'s' if count != 1 else ''} prioritized"
+        case "generate_test_cases":
+            count = len((updates.get("test_cases") or {}).get("cases", []))
+            return f"{count} test case{'s' if count != 1 else ''} generated"
+        case "generate_risks":
+            count = len((updates.get("risks") or {}).get("risks", []))
+            return f"{count} risk{'s' if count != 1 else ''} identified"
+        case "generate_architecture":
+            opts = updates.get("architecture") or {}
+            count = len(opts.get("options", []))
+            return f"{count} architecture option{'s' if count != 1 else ''} evaluated"
+        case "consistency_check":
+            issues = len(updates.get("consistency_issues") or [])
+            return f"Consistency check complete — {issues} issue{'s' if issues != 1 else ''} found"
+        case "qa_evaluation":
+            qa = updates.get("qa_report") or {}
+            rate = qa.get("pass_rate", 0)
+            return f"QA complete — {rate:.0f}% pass rate"
+        case "human_review_gate":
+            return "Awaiting human review"
+        case "approval_versioning":
+            return "Approval recorded"
+        case "build_export_pack":
+            return "Export pack assembled"
+        case _:
+            return f"{node_name.replace('_', ' ').title()} completed"
+
+
 async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> None:
     """Run the full LangGraph workflow for a new intake run."""
     run = await RunsDB.get_by_id(run_id)
@@ -77,6 +142,7 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
             "business_idea": run.get("raw_input") or "",
             "target_users": run.get("target_users") or "",
             "business_context": run.get("business_context") or "",
+            "raw_requirements": run.get("raw_requirements") or "",
             "constraints": run.get("constraints") or "",
             "input_type": run.get("input_type") or "text",
         },
@@ -91,8 +157,15 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
     async for event in graph.astream(initial_state, config=config):
         node_name = list(event.keys())[0] if event else None
         if node_name:
+            node_updates = list(event.values())[0] if event else {}
             log.debug("graph_node_complete", node=node_name)
-            final_state.update(list(event.values())[0] if event else {})
+            final_state.update(node_updates)
+            summary = _node_summary(node_name, node_updates)
+            await RunsDB.append_log(run_id, {
+                "node": node_name,
+                "summary": summary,
+                "ts": datetime.now(timezone.utc).isoformat(),
+            })
 
     # ── Override early exit when all required intake fields are present ────────
     # The LLM's detect_missing_info check is advisory. If the user supplied all
@@ -122,8 +195,15 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
         async for event in graph.astream(initial_state_override, config={"configurable": {"thread_id": f"{run_id}-retry"}}):
             node_name = list(event.keys())[0] if event else None
             if node_name:
+                node_updates = list(event.values())[0] if event else {}
                 log.debug("graph_node_complete_retry", node=node_name)
-                final_state.update(list(event.values())[0] if event else {})
+                final_state.update(node_updates)
+                summary = _node_summary(node_name, node_updates)
+                await RunsDB.append_log(run_id, {
+                    "node": node_name,
+                    "summary": summary,
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                })
         # Refresh flags after the second pass
         missing_flags = final_state.get("missing_info_flags") or []  # type: ignore[call-overload]
         can_proceed = bool(final_state.get("can_proceed", True))  # type: ignore[call-overload]

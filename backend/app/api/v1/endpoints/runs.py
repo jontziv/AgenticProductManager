@@ -43,6 +43,7 @@ async def create_run(
         raw_input=body.business_idea,
         target_users=body.target_users,
         business_context=body.meeting_notes,
+        raw_requirements=body.raw_requirements,
         constraints=body.constraints,
         input_type="text",
     )

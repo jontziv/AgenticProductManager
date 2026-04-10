@@ -63,6 +63,8 @@ async def ingest_input_node(state: WorkflowState) -> dict[str, Any]:
         "title": inputs.get("title", ""),
         "business_idea": inputs.get("business_idea", ""),
         "target_users": inputs.get("target_users", ""),
+        "meeting_notes": inputs.get("meeting_notes", ""),
+        "raw_requirements": inputs.get("raw_requirements", ""),
         "timeline": inputs.get("timeline", ""),
         "constraints": inputs.get("constraints", ""),
         "assumptions": inputs.get("assumptions", ""),

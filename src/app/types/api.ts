@@ -46,6 +46,12 @@ export interface IntakeRunSummary {
   qa_score?: number;
 }
 
+export interface AgentLogEntry {
+  node: string;
+  summary: string;
+  ts: string;
+}
+
 export interface IntakeRun {
   id: string;
   user_id: string;
@@ -54,6 +60,8 @@ export interface IntakeRun {
   graph_thread_id?: string;
   current_node?: string;
   missing_info: string[];
+  run_logs: AgentLogEntry[];
+  raw_requirements?: string;
   created_at: string;
   updated_at: string;
   source_documents: SourceDocument[];
@@ -67,7 +75,7 @@ export interface IntakeRun {
 export interface CreateRunPayload {
   title: string;
   meeting_notes?: string;
-  raw_requirements?: string;
+  raw_requirements: string;
   business_idea: string;
   constraints?: string;
   timeline?: string;

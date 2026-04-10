@@ -72,6 +72,7 @@ class RunsDB:
         raw_input: str,
         target_users: str | None = None,
         business_context: str | None = None,
+        raw_requirements: str | None = None,
         constraints: str | None = None,
         input_type: str = "text",
     ) -> dict[str, Any]:
@@ -81,14 +82,24 @@ class RunsDB:
                 """
                 INSERT INTO intake_runs
                     (id, user_id, title, status, raw_input, input_type,
-                     target_users, business_context, constraints)
-                VALUES ($1, $2, $3, 'queued', $4, $5, $6, $7, $8)
+                     target_users, business_context, raw_requirements, constraints)
+                VALUES ($1, $2, $3, 'queued', $4, $5, $6, $7, $8, $9)
                 RETURNING *
                 """,
                 run_id, user_id, title, raw_input, input_type,
-                target_users, business_context, constraints,
+                target_users, business_context, raw_requirements, constraints,
             )
         return dict(row)  # type: ignore[arg-type]
+
+    @staticmethod
+    async def append_log(run_id: str, entry: dict[str, Any]) -> None:
+        """Append a single agent log entry to the run_logs JSONB array."""
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE intake_runs SET run_logs = run_logs || $2::jsonb WHERE id = $1",
+                run_id, json.dumps([entry]),
+            )
 
     @staticmethod
     async def update_status(run_id: str, status: str, **kwargs: Any) -> None:

@@ -12,9 +12,9 @@ class CreateRunRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     business_idea: str = Field(min_length=10, description="Main idea / meeting notes")
     target_users: str = Field(min_length=3)
+    raw_requirements: str = Field(min_length=10, description="Stakeholder requirements — what the system must do")
     constraints: str | None = None
     meeting_notes: str | None = None
-    raw_requirements: str | None = None
     timeline: str | None = None
     assumptions: str | None = None
     audio_file_url: str | None = None
@@ -62,6 +62,8 @@ class RunResponse(BaseModel):
     idea_type: str | None
     langgraph_thread_id: str | None
     missing_info: list[str] = []
+    raw_requirements: str | None = None
+    run_logs: list[Any] = []
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None
@@ -75,16 +77,19 @@ class RunResponse(BaseModel):
     ) -> "RunResponse":
         from app.models.artifacts import ArtifactResponse  # avoid circular
         import json as _json
+
+        def _load_jsonb_list(val: Any) -> list:
+            if val is None:
+                return []
+            if isinstance(val, str):
+                try:
+                    return _json.loads(val)
+                except Exception:
+                    return []
+            return val if isinstance(val, list) else []
+
         raw_missing = row.get("missing_info")
-        if isinstance(raw_missing, str):
-            try:
-                missing_info = _json.loads(raw_missing)
-            except Exception:
-                missing_info = []
-        elif isinstance(raw_missing, list):
-            missing_info = raw_missing
-        else:
-            missing_info = []
+        missing_info = _load_jsonb_list(raw_missing)
         return cls(
             id=str(row["id"]),
             user_id=str(row["user_id"]),
@@ -98,6 +103,8 @@ class RunResponse(BaseModel):
             idea_type=row.get("idea_type"),
             langgraph_thread_id=row.get("langgraph_thread_id"),
             missing_info=missing_info,
+            raw_requirements=row.get("raw_requirements"),
+            run_logs=_load_jsonb_list(row.get("run_logs")),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             completed_at=row.get("completed_at"),

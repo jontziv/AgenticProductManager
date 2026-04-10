@@ -36,7 +36,7 @@ export function IdeaIntake() {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
-  const isValid = form.title.trim() && form.business_idea.trim() && form.target_users.trim();
+  const isValid = form.title.trim() && form.business_idea.trim() && form.target_users.trim() && form.raw_requirements.trim();
 
   const handleChange = (field: keyof FormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -159,6 +159,18 @@ export function IdeaIntake() {
                   required
                 />
               </Field>
+
+              <Field id="raw_requirements" label="Raw requirements" required hint="What the system must do — stakeholder language is fine">
+                <textarea
+                  id="raw_requirements"
+                  value={form.raw_requirements}
+                  onChange={(e) => handleChange("raw_requirements", e.target.value)}
+                  placeholder="Users need to be able to... The system must... It would be great if..."
+                  rows={4}
+                  className={`${inputClass} resize-none`}
+                  required
+                />
+              </Field>
             </div>
           </div>
 
@@ -172,17 +184,6 @@ export function IdeaIntake() {
                   onChange={(e) => handleChange("meeting_notes", e.target.value)}
                   placeholder="Paste meeting notes, conversation summaries, or call transcripts..."
                   rows={5}
-                  className={`${inputClass} resize-none`}
-                />
-              </Field>
-
-              <Field id="raw_requirements" label="Raw requirements" hint="Stakeholder-written or informal requirements">
-                <textarea
-                  id="raw_requirements"
-                  value={form.raw_requirements ?? ""}
-                  onChange={(e) => handleChange("raw_requirements", e.target.value)}
-                  placeholder="Users need to be able to... The system must... It would be great if..."
-                  rows={4}
                   className={`${inputClass} resize-none`}
                 />
               </Field>
