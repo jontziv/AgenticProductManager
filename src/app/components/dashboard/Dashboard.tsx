@@ -25,6 +25,16 @@ export function Dashboard() {
     navigate("/login");
   };
 
+  const handleDelete = async (runId: string) => {
+    try {
+      await runsApi.delete(runId);
+      setRuns((prev) => prev.filter((r) => r.id !== runId));
+    } catch {
+      // Show inline error without blocking UX
+      setError("Failed to delete run. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
@@ -99,7 +109,7 @@ export function Dashboard() {
         {!loading && !error && runs.length > 0 && (
           <div className="space-y-3">
             {runs.map((run) => (
-              <RunCard key={run.id} run={run} />
+              <RunCard key={run.id} run={run} onDelete={handleDelete} />
             ))}
           </div>
         )}

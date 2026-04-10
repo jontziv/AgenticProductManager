@@ -330,6 +330,24 @@ class JobsDB:
             )
         return dict(row) if row else None
 
+    @staticmethod
+    async def cancel_by_run(run_id: str) -> int:
+        """Cancel all non-terminal jobs for a run. Returns number of rows affected."""
+        pool = await get_db_pool()
+        async with pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE queued_jobs
+                SET status = 'cancelled', updated_at = $2,
+                    completed_at = COALESCE(completed_at, $2)
+                WHERE run_id = $1
+                  AND status NOT IN ('completed', 'failed', 'cancelled')
+                """,
+                run_id, _now(),
+            )
+        # asyncpg returns "UPDATE N"
+        return int(result.split()[-1]) if result else 0
+
 
 # ── Approvals ─────────────────────────────────────────────────────────────────
 

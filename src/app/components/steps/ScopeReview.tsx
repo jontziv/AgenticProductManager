@@ -10,7 +10,7 @@ import type {
   MvpScopeArtifact,
 } from "../../types/api";
 import {
-  Loader2, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, RefreshCw,
+  Loader2, ArrowRight, ArrowLeft, Sparkles, AlertTriangle, RefreshCw, X,
 } from "lucide-react";
 
 const PROCESSING_STEPS = [
@@ -29,6 +29,17 @@ export function ScopeReview() {
   const { state, setRun, setArtifacts, setCurrentStep } = useWorkflow();
   const [processingStep, setProcessingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  const handleCancelRun = async () => {
+    if (!runId) return;
+    if (!window.confirm("Stop and delete this run?")) return;
+    try {
+      await runsApi.delete(runId);
+      navigate("/dashboard");
+    } catch {
+      setError("Could not cancel the run. Please try from the dashboard.");
+    }
+  };
 
   const isProcessing = !state.run ||
     state.run.status === "queued" ||
@@ -119,6 +130,13 @@ export function ScopeReview() {
           <Sparkles className="h-4 w-4 text-primary" />
           <span>{PROCESSING_STEPS[processingStep]}...</span>
         </div>
+        <button
+          onClick={handleCancelRun}
+          className="mt-6 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <X className="h-3.5 w-3.5" />
+          Stop &amp; delete this run
+        </button>
         {state.run?.missing_info?.length ? (
           <div className="mt-8 max-w-md rounded-xl border border-chart-4/20 bg-chart-4/5 p-4">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium text-chart-4">

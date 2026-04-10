@@ -1,10 +1,11 @@
 import { Link } from "react-router";
 import { format } from "date-fns";
-import { ArrowRight, CheckCircle2, Clock, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, AlertTriangle, XCircle, Loader2, Trash2 } from "lucide-react";
 import type { IntakeRunSummary, RunStatus } from "../../types/api";
 
 interface RunCardProps {
   run: IntakeRunSummary;
+  onDelete?: (runId: string) => void;
 }
 
 const STATUS_CONFIG: Record<RunStatus, { label: string; icon: React.ReactNode; className: string }> = {
@@ -75,9 +76,17 @@ function getRunPath(run: IntakeRunSummary): string {
   }
 }
 
-export function RunCard({ run }: RunCardProps) {
+export function RunCard({ run, onDelete }: RunCardProps) {
   const config = STATUS_CONFIG[run.status];
   const path = getRunPath(run);
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm(`Delete "${run.title}"? This cannot be undone.`)) {
+      onDelete?.(run.id);
+    }
+  };
 
   return (
     <Link
@@ -102,7 +111,16 @@ export function RunCard({ run }: RunCardProps) {
           <span>{format(new Date(run.created_at), "MMM d, yyyy")}</span>
         </div>
       </div>
-      <ArrowRight className="ml-4 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      <div className="ml-4 flex shrink-0 items-center gap-2">
+        <button
+          onClick={handleDelete}
+          title="Delete run"
+          className="rounded-lg p-1.5 text-muted-foreground/50 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+        <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </div>
     </Link>
   );
 }

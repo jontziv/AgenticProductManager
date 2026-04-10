@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import structlog
 
 from app.deps import CurrentUser
-from app.db.queries import RunsDB, ArtifactsDB, ApprovalsDB
+from app.db.queries import RunsDB, ArtifactsDB, ApprovalsDB, JobsDB
 from app.models.runs import (
     CreateRunRequest,
     RunResponse,
@@ -73,8 +73,9 @@ async def cancel_run(run_id: str, current_user: CurrentUser) -> None:
     run = await RunsDB.get(run_id, current_user.user_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    cancelled_jobs = await JobsDB.cancel_by_run(run_id)
     await RunsDB.update_status(run_id, "cancelled")
-    logger.info("run_cancelled", run_id=run_id)
+    logger.info("run_cancelled", run_id=run_id, cancelled_jobs=cancelled_jobs)
 
 
 @router.delete("/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -82,6 +83,8 @@ async def delete_run(run_id: str, current_user: CurrentUser) -> None:
     run = await RunsDB.get(run_id, current_user.user_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    # Cancel any pending/running jobs first so the worker doesn't pick them up
+    await JobsDB.cancel_by_run(run_id)
     await RunsDB.delete(run_id)
     logger.info("run_deleted", run_id=run_id)
 

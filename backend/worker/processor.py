@@ -94,6 +94,40 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
             log.debug("graph_node_complete", node=node_name)
             final_state.update(list(event.values())[0] if event else {})
 
+    # ── Override early exit when all required intake fields are present ────────
+    # The LLM's detect_missing_info check is advisory. If the user supplied all
+    # required fields (business_idea + target_users), we proceed even when
+    # can_proceed=False, making explicit assumptions from the LLM's suggestions.
+    missing_flags: list[str] = final_state.get("missing_info_flags") or []  # type: ignore[call-overload]
+    can_proceed: bool = bool(final_state.get("can_proceed", True))  # type: ignore[call-overload]
+
+    required_fields_present = bool(
+        (run.get("raw_input") or "").strip()
+        and (run.get("target_users") or "").strip()
+    )
+
+    if not can_proceed and required_fields_present:
+        log.info(
+            "overriding_can_proceed",
+            reason="required fields present, proceeding with assumptions",
+            missing_flags=missing_flags,
+        )
+        # Re-run graph with can_proceed forced to True and flags surfaced as assumptions
+        initial_state_override: WorkflowState = {
+            **initial_state,
+            "can_proceed": True,
+            "missing_info_flags": missing_flags,
+        }
+        final_state = {}
+        async for event in graph.astream(initial_state_override, config={"configurable": {"thread_id": f"{run_id}-retry"}}):
+            node_name = list(event.keys())[0] if event else None
+            if node_name:
+                log.debug("graph_node_complete_retry", node=node_name)
+                final_state.update(list(event.values())[0] if event else {})
+        # Refresh flags after the second pass
+        missing_flags = final_state.get("missing_info_flags") or []  # type: ignore[call-overload]
+        can_proceed = bool(final_state.get("can_proceed", True))  # type: ignore[call-overload]
+
     # Persist generated artifacts
     artifact_keys = [
         "problem_framing", "personas", "mvp_scope", "success_metrics",
