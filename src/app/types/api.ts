@@ -1,10 +1,11 @@
 // ── Shared API types ────────────────────────────────────────────────────────
 
 export type RunStatus =
-  | "pending"
+  | "queued"
   | "processing"
-  | "awaiting_review"
-  | "awaiting_approval"
+  | "needs_review"
+  | "qa_failed"
+  | "qa_passed"
   | "approved"
   | "exported"
   | "failed"

@@ -160,8 +160,16 @@ async def version() -> dict:
 
 # ── Serve built React frontend (must be mounted last) ─────────────────────────
 # In production the Dockerfile copies the Vite build output to /app/static.
-# StaticFiles(html=True) serves index.html as a fallback for any path that
-# doesn't map to a real file, enabling client-side routing.
-_static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+# Static assets are served directly; all other paths serve index.html so
+# React Router can handle client-side navigation.
+_static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static"))
 if os.path.isdir(_static_dir):
-    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="frontend")
+    from fastapi.responses import FileResponse
+
+    # Serve /assets/* and other real files directly
+    app.mount("/assets", StaticFiles(directory=os.path.join(_static_dir, "assets")), name="assets")
+
+    # Catch-all: return index.html for every unmatched path (SPA client-side routing)
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str) -> FileResponse:  # noqa: ARG001
+        return FileResponse(os.path.join(_static_dir, "index.html"))

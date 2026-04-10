@@ -96,7 +96,7 @@ async def submit_approval(
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    if run["status"] not in ("awaiting_approval", "approved"):
+    if run["status"] not in ("qa_passed", "approved"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Run is in status '{run['status']}', not awaiting approval",
@@ -109,7 +109,7 @@ async def submit_approval(
         comment=body.comment,
     )
 
-    new_status = "approved" if body.decision == "approved" else "awaiting_review"
+    new_status = "approved" if body.decision == "approved" else "needs_review"
     await RunsDB.update_status(run_id, new_status)
 
     logger.info("approval_submitted", run_id=run_id, decision=body.decision)

@@ -8,8 +8,8 @@ interface RunCardProps {
 }
 
 const STATUS_CONFIG: Record<RunStatus, { label: string; icon: React.ReactNode; className: string }> = {
-  pending: {
-    label: "Pending",
+  queued: {
+    label: "Queued",
     icon: <Clock className="h-3.5 w-3.5" />,
     className: "bg-muted text-muted-foreground border-border",
   },
@@ -18,13 +18,18 @@ const STATUS_CONFIG: Record<RunStatus, { label: string; icon: React.ReactNode; c
     icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
     className: "bg-primary/10 text-primary border-primary/20",
   },
-  awaiting_review: {
-    label: "Awaiting Review",
+  needs_review: {
+    label: "Needs Review",
     icon: <AlertTriangle className="h-3.5 w-3.5" />,
     className: "bg-chart-4/10 text-chart-4 border-chart-4/20",
   },
-  awaiting_approval: {
-    label: "Awaiting Approval",
+  qa_failed: {
+    label: "QA Failed",
+    icon: <XCircle className="h-3.5 w-3.5" />,
+    className: "bg-destructive/5 text-destructive border-destructive/20",
+  },
+  qa_passed: {
+    label: "QA Passed",
     icon: <AlertTriangle className="h-3.5 w-3.5" />,
     className: "bg-chart-4/10 text-chart-4 border-chart-4/20",
   },
@@ -52,12 +57,13 @@ const STATUS_CONFIG: Record<RunStatus, { label: string; icon: React.ReactNode; c
 
 function getRunPath(run: IntakeRunSummary): string {
   switch (run.status) {
-    case "pending":
+    case "queued":
     case "processing":
       return `/runs/${run.id}/processing`;
-    case "awaiting_review":
+    case "needs_review":
+    case "qa_failed":
       return `/runs/${run.id}/scope`;
-    case "awaiting_approval":
+    case "qa_passed":
       return `/runs/${run.id}/approval`;
     case "approved":
     case "exported":

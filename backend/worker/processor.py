@@ -122,7 +122,7 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
     # Update run — only columns that actually exist in the schema
     idea_type = final_state.get("idea_classification")  # type: ignore[call-overload]
     await RunsDB.update_status(
-        run_id, "awaiting_review",
+        run_id, "needs_review",
         langgraph_thread_id=run_id,
         **({"idea_type": idea_type} if idea_type else {}),
     )
@@ -233,7 +233,7 @@ async def _run_qa(run_id: str, user_id: str, job_id: str, log: Any) -> None:
         remediation_tasks=qa_report.get("remediation_tasks", []),
     )
 
-    new_status = "awaiting_approval" if qa_report.get("export_ready") else "awaiting_review"
+    new_status = "qa_passed" if qa_report.get("export_ready") else "needs_review"
     await RunsDB.update_status(run_id, new_status)
     log.info("qa_complete", export_ready=qa_report.get("export_ready"))
 
