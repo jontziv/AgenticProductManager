@@ -144,3 +144,13 @@ async def health() -> dict:
 async def readiness() -> dict:
     # Could add DB connectivity check here
     return {"status": "ready"}
+
+
+@app.get("/version", include_in_schema=False)
+async def version() -> dict:
+    import os
+    return {
+        "commit": os.environ.get("RENDER_GIT_COMMIT", "unknown"),
+        "embedded_worker": settings.embedded_worker,
+        "app_env": settings.app_env,
+    }
