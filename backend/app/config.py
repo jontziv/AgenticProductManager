@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     worker_poll_interval_seconds: int = 5
     worker_max_retries: int = 3
     worker_concurrency: int = 2
+    # Set to true to run the worker loop inside the API process (Render free tier).
+    # Set to false when deploying a separate worker service.
+    embedded_worker: bool = False
 
     # ── Export ────────────────────────────────────────────────────────────────
     export_storage_bucket: str = "exports"

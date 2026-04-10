@@ -1,5 +1,5 @@
 services:
-  # ── Backend API ───────────────────────────────────────────────────────────────
+  # ── Backend API (+ embedded worker on free tier) ───────────────────────────
   - type: web
     name: pm-sidekick-api
     runtime: docker
@@ -42,46 +42,11 @@ services:
         value: "5"
       - key: WORKER_MAX_RETRIES
         value: "3"
+      - key: WORKER_CONCURRENCY
+        value: "2"
+      - key: EMBEDDED_WORKER
+        value: "true"
       - key: ALLOWED_ORIGINS
         sync: false
     healthCheckPath: /healthz
-    autoDeploy: true
-
-  # ── Background Worker ─────────────────────────────────────────────────────────
-  - type: worker
-    name: pm-sidekick-worker
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile.worker
-    dockerContext: ./backend
-    envVars:
-      - key: APP_ENV
-        value: production
-      - key: LOG_LEVEL
-        value: INFO
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: GROQ_MODEL_FAST
-        value: llama-3.1-8b-instant
-      - key: GROQ_MODEL_STRUCTURED
-        value: llama-3.3-70b-versatile
-      - key: GROQ_MODEL_SYNTHESIS
-        value: llama-3.3-70b-versatile
-      - key: GROQ_MODEL_EVAL
-        value: llama-3.3-70b-versatile
-      - key: GROQ_MODEL_AUDIO
-        value: whisper-large-v3-turbo
-      - key: LANGSMITH_ENABLED
-        value: "false"
-      - key: WORKER_POLL_INTERVAL_SECONDS
-        value: "5"
-      - key: WORKER_MAX_RETRIES
-        value: "3"
-      - key: WORKER_CONCURRENCY
-        value: "2"
     autoDeploy: true

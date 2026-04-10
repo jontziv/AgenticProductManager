@@ -49,8 +49,31 @@ if settings.langsmith_enabled:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    import asyncio
+    from app.db.client import get_db_pool, close_db_pool
+
     logger.info("startup", env=settings.app_env)
+
+    # Start embedded worker when EMBEDDED_WORKER=true (default on Render free tier
+    # where a separate background worker service is not available).
+    worker_task = None
+    if settings.embedded_worker:
+        from worker.main import run_worker
+        await get_db_pool()
+        worker_task = asyncio.create_task(run_worker())
+        logger.info("embedded_worker_started")
+
     yield
+
+    if worker_task:
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
+        await close_db_pool()
+        logger.info("embedded_worker_stopped")
+
     logger.info("shutdown")
 
 
