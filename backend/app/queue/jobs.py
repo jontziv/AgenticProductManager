@@ -3,6 +3,7 @@ DB-backed job queue. Idempotent, retryable, inspectable.
 Jobs are claimed atomically using SELECT FOR UPDATE SKIP LOCKED.
 """
 
+import json
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -22,9 +23,10 @@ class JobQueue:
     @staticmethod
     async def enqueue(
         run_id: str,
+        user_id: str,
         job_type: JobType,
         payload: dict[str, Any],
-        priority: int = 0,
+        priority: int = 5,
     ) -> dict[str, Any]:
         pool = await get_db_pool()
         job_id = str(uuid4())
@@ -33,10 +35,11 @@ class JobQueue:
             row = await conn.fetchrow(
                 """
                 INSERT INTO queued_jobs
-                (id, run_id, job_type, status, payload, priority, retry_count, created_at, updated_at)
-                VALUES ($1, $2, $3, 'queued', $4, $5, 0, $6, $6)
+                (id, run_id, user_id, job_type, status, payload, priority, retry_count, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, 'queued', $5, $6, 0, $7, $7)
                 RETURNING *
                 """,
-                job_id, run_id, job_type.value, str(payload), priority, now,
+                job_id, run_id, user_id, job_type.value,
+                json.dumps(payload), priority, now,
             )
         return dict(row)  # type: ignore[arg-type]

@@ -7,13 +7,13 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
   (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cnh1dnlpZXF1c2hlcXZzemh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIyMjgsImV4cCI6MjA5MTM4ODIyOH0.JkdJXN6HRzjRxqp_0AZOezkCMG-xZ-6vQ7PHq2W0b8U";
-// In dev, Vite proxies /api/v1 → localhost:8000.
-// In a production static build with no env var, fall back to the deployed backend URL.
+// In dev, Vite proxies /api → localhost:8000 and the client appends /v1.
+// In a production static build with no env var, fall back to the deployed backend.
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
   (import.meta.env.PROD
-    ? "https://agenticproductmanager.onrender.com/api/v1"
-    : "/api/v1");
+    ? "https://agenticproductmanager.onrender.com/api"
+    : "/api");
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

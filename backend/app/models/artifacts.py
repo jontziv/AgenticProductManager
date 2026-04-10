@@ -173,7 +173,7 @@ class ArtifactResponse(BaseModel):
             run_id=str(row["run_id"]),
             artifact_type=row["artifact_type"],
             version=row["version"],
-            content=row["content_json"] if isinstance(row["content_json"], dict) else {},
+            content=row["content"] if isinstance(row["content"], dict) else {},
             status=row["status"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],

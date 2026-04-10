@@ -40,12 +40,17 @@ async def create_run(
         run_id=run_id,
         user_id=current_user.user_id,
         title=body.title,
-        source_inputs=body.model_dump(exclude={"title"}),
+        raw_input=body.business_idea,
+        target_users=body.target_users,
+        business_context=body.meeting_notes,
+        constraints=body.constraints,
+        input_type="text",
     )
 
     # Enqueue the orchestration job
     await JobQueue.enqueue(
         run_id=run_id,
+        user_id=current_user.user_id,
         job_type=JobType.ORCHESTRATE_RUN,
         payload={"run_id": run_id},
     )
