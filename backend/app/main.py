@@ -3,6 +3,7 @@ FastAPI application entry point.
 """
 
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
@@ -11,6 +12,7 @@ import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.config import get_settings
@@ -154,3 +156,12 @@ async def version() -> dict:
         "embedded_worker": settings.embedded_worker,
         "app_env": settings.app_env,
     }
+
+
+# ── Serve built React frontend (must be mounted last) ─────────────────────────
+# In production the Dockerfile copies the Vite build output to /app/static.
+# StaticFiles(html=True) serves index.html as a fallback for any path that
+# doesn't map to a real file, enabling client-side routing.
+_static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+if os.path.isdir(_static_dir):
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="frontend")

@@ -7,13 +7,11 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
   (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2cnh1dnlpZXF1c2hlcXZzemh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MTIyMjgsImV4cCI6MjA5MTM4ODIyOH0.JkdJXN6HRzjRxqp_0AZOezkCMG-xZ-6vQ7PHq2W0b8U";
-// In dev, Vite proxies /api → localhost:8000 and the client appends /v1.
-// In a production static build with no env var, fall back to the deployed backend.
+// In dev, Vite proxies /api → localhost:8000.
+// In production, the React app is served by the same FastAPI process, so /api
+// resolves to the same origin — no hardcoded URL needed.
 const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
-  (import.meta.env.PROD
-    ? "https://agenticproductmanager.onrender.com/api"
-    : "/api");
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) || "/api";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
