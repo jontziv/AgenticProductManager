@@ -10,6 +10,34 @@ const DRAFT_KEY = "new_run_intake";
 
 type FormData = Omit<CreateRunPayload, "audio_file_url">;
 
+const inputClass =
+  "w-full rounded-lg border border-border bg-input-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none";
+
+function Field({
+  id,
+  label,
+  required,
+  hint,
+  children,
+}: {
+  id: string;
+  label: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
+        {label}
+        {required && <span className="ml-1 text-destructive">*</span>}
+        {hint && <span className="ml-2 text-xs font-normal text-muted-foreground">{hint}</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
 const EMPTY_FORM: FormData = {
   title: "",
   business_idea: "",
@@ -61,32 +89,6 @@ export function IdeaIntake() {
       setLoading(false);
     }
   };
-
-  const Field = ({
-    id,
-    label,
-    required,
-    hint,
-    children,
-  }: {
-    id: string;
-    label: string;
-    required?: boolean;
-    hint?: string;
-    children: React.ReactNode;
-  }) => (
-    <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">
-        {label}
-        {required && <span className="ml-1 text-destructive">*</span>}
-        {hint && <span className="ml-2 text-xs font-normal text-muted-foreground">{hint}</span>}
-      </label>
-      {children}
-    </div>
-  );
-
-  const inputClass =
-    "w-full rounded-lg border border-border bg-input-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none";
 
   return (
     <div className="min-h-screen bg-background">
