@@ -63,13 +63,23 @@ async def process_job(job: dict[str, Any]) -> None:
 
     except Exception as exc:
         log.exception("job_failed", error=str(exc))
-        retry_count = await JobsDB.increment_retry(job_id, str(exc))
-        if retry_count >= settings.worker_max_retries:
+
+        if job_type == "orchestrate_run":
+            # Never retry orchestration jobs. Every retry re-runs the full
+            # LangGraph workflow from scratch (MemorySaver checkpoint is lost
+            # when initial_state is re-submitted), burning tokens on nodes that
+            # already succeeded. Fail immediately and let the user resubmit.
             await JobsDB.update_status(job_id, "failed", error_message=str(exc))
             await RunsDB.update_status(run_id, "failed")
-            log.error("job_terminal_failure", retries=retry_count)
+            log.error("orchestration_terminal_failure", error=str(exc))
         else:
-            log.warning("job_will_retry", retry=retry_count)
+            retry_count = await JobsDB.increment_retry(job_id, str(exc))
+            if retry_count >= settings.worker_max_retries:
+                await JobsDB.update_status(job_id, "failed", error_message=str(exc))
+                await RunsDB.update_status(run_id, "failed")
+                log.error("job_terminal_failure", retries=retry_count)
+            else:
+                log.warning("job_will_retry", retry=retry_count)
 
 
 def _node_summary(node_name: str, updates: dict[str, Any]) -> str:
@@ -137,34 +147,50 @@ def _node_summary(node_name: str, updates: dict[str, Any]) -> str:
 
 
 async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> None:
-    """Run the full LangGraph workflow for a new intake run."""
+    """Run the full LangGraph workflow for a new intake run.
+
+    Checkpoint-aware: if MemorySaver already holds a checkpoint for this run_id
+    (i.e. the job was retried within the same worker process after a mid-run
+    failure), we pass None as input so LangGraph resumes from the last completed
+    node instead of restarting from ingest_input with a fresh initial_state.
+    """
     run = await RunsDB.get_by_id(run_id)
     if not run:
         raise ValueError(f"Run {run_id} not found")
 
-    await RunsDB.update_status(run_id, "processing")
-
-    # Build graph input from DB columns
-    initial_state: WorkflowState = {
-        "run_id": run_id,
-        "user_id": user_id,
-        "source_inputs": {
-            "business_idea": run.get("raw_input") or "",
-            "target_users": run.get("target_users") or "",
-            "business_context": run.get("business_context") or "",
-            "raw_requirements": run.get("raw_requirements") or "",
-            "constraints": run.get("constraints") or "",
-            "input_type": run.get("input_type") or "text",
-        },
-        "qa_attempt": 0,
-        "audit_events": [],
-    }
-
     graph = get_graph()
     config = {"configurable": {"thread_id": run_id}}
 
+    # Decide whether to start fresh or resume from an existing checkpoint.
+    # Passing initial_state to astream() when a checkpoint already exists causes
+    # LangGraph to overwrite the saved state (including audit_events=[]) and
+    # re-execute from ingest_input — exactly the restart loop we are fixing.
+    existing = await graph.aget_state(config)
+    if existing and existing.next:
+        # Resume: checkpoint is mid-workflow; do not reset state.
+        log.info("orchestration_resuming", next_nodes=list(existing.next))
+        stream_input: WorkflowState | None = None
+    else:
+        # Fresh start: build full input from DB record.
+        stream_input = {
+            "run_id": run_id,
+            "user_id": user_id,
+            "source_inputs": {
+                "business_idea": run.get("raw_input") or "",
+                "target_users": run.get("target_users") or "",
+                "business_context": run.get("business_context") or "",
+                "raw_requirements": run.get("raw_requirements") or "",
+                "constraints": run.get("constraints") or "",
+                "input_type": run.get("input_type") or "text",
+            },
+            "qa_attempt": 0,
+            "audit_events": [],
+        }
+
+    await RunsDB.update_status(run_id, "processing")
+
     final_state: WorkflowState = {}
-    async for event in graph.astream(initial_state, config=config):
+    async for event in graph.astream(stream_input, config=config):
         node_name = list(event.keys())[0] if event else None
         if node_name:
             node_updates = list(event.values())[0] if event else {}
@@ -176,6 +202,16 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
                 "summary": summary,
                 "ts": datetime.now(timezone.utc).isoformat(),
             })
+
+    # On resume, final_state only contains updates from nodes that ran in this
+    # execution. Fill gaps from the MemorySaver checkpoint (which holds the full
+    # accumulated state across all executions for this thread_id).
+    checkpoint = await graph.aget_state(config)
+    if checkpoint and checkpoint.values:
+        checkpoint_values: dict[str, Any] = dict(checkpoint.values)
+        for k, v in checkpoint_values.items():
+            if k not in final_state or not final_state[k]:  # type: ignore[operator]
+                final_state[k] = v  # type: ignore[assignment]
 
     # missing_info_flags are advisory assumptions — the graph always proceeds now
     missing_flags: list[str] = final_state.get("missing_info_flags") or []  # type: ignore[call-overload]
