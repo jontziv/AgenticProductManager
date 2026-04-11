@@ -3,6 +3,7 @@ Supabase client factory — uses the service role key (server-only).
 Never expose service role key to the browser.
 """
 
+import json
 from functools import lru_cache
 
 import asyncpg
@@ -20,6 +21,22 @@ def get_supabase_client() -> Client:
 _pool: asyncpg.Pool | None = None
 
 
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Register JSON/JSONB codecs so asyncpg returns dicts, not raw strings."""
+    await conn.set_type_codec(
+        "jsonb",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+    )
+    await conn.set_type_codec(
+        "json",
+        encoder=json.dumps,
+        decoder=json.loads,
+        schema="pg_catalog",
+    )
+
+
 async def get_db_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
@@ -29,6 +46,7 @@ async def get_db_pool() -> asyncpg.Pool:
             min_size=2,
             max_size=10,
             command_timeout=30,
+            init=_init_connection,
         )
     return _pool
 

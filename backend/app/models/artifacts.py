@@ -195,12 +195,24 @@ class ArtifactResponse(BaseModel):
 
     @classmethod
     def from_db(cls, row: dict[str, Any]) -> "ArtifactResponse":
+        import json as _json
+        raw = row["content"]
+        if isinstance(raw, dict):
+            content = raw
+        elif isinstance(raw, str):
+            try:
+                parsed = _json.loads(raw)
+                content = parsed if isinstance(parsed, dict) else {}
+            except Exception:
+                content = {}
+        else:
+            content = {}
         return cls(
             id=str(row["id"]),
             run_id=str(row["run_id"]),
             artifact_type=row["artifact_type"],
             version=row["version"],
-            content=row["content"] if isinstance(row["content"], dict) else {},
+            content=content,
             status=row["status"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],

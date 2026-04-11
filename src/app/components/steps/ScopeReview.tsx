@@ -266,13 +266,13 @@ export function ScopeReview() {
               <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Hypothesis</div>
               <p className="italic text-muted-foreground">{problemFraming.hypothesis}</p>
             </div>
-            {problemFraming.assumptions.length > 0 && (
+            {(problemFraming.assumptions?.length ?? 0) > 0 && (
               <div>
                 <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Assumptions made ({problemFraming.assumptions.length})
+                  Assumptions made ({problemFraming.assumptions?.length ?? 0})
                 </div>
                 <ul className="space-y-1">
-                  {problemFraming.assumptions.map((a, i) => (
+                  {(problemFraming.assumptions ?? []).map((a, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
                       <span className="text-chart-4">~</span>
                       <span className="text-muted-foreground">{a}</span>
@@ -291,10 +291,10 @@ export function ScopeReview() {
             <div>
               <div className="mb-3 flex items-center gap-2 text-sm font-medium">
                 <div className="h-2 w-2 rounded-full bg-primary" />
-                In Scope ({mvpScope.in_scope.length})
+                In Scope ({(mvpScope.in_scope ?? []).length})
               </div>
               <ul className="space-y-1.5">
-                {mvpScope.in_scope.map((item, i) => (
+                {(mvpScope.in_scope ?? []).map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
                     <span className="mt-0.5 text-primary">+</span>
                     {item}
@@ -305,10 +305,10 @@ export function ScopeReview() {
             <div>
               <div className="mb-3 flex items-center gap-2 text-sm font-medium">
                 <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-                Out of Scope ({mvpScope.out_of_scope.length})
+                Out of Scope ({(mvpScope.out_of_scope ?? []).length})
               </div>
               <ul className="space-y-1.5">
-                {mvpScope.out_of_scope.map((item, i) => (
+                {(mvpScope.out_of_scope ?? []).map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
                     <span className="mt-0.5">–</span>
                     {item}
@@ -321,9 +321,9 @@ export function ScopeReview() {
 
         {/* Personas */}
         <section className="rounded-xl border border-border bg-card p-6">
-          <h2 className="mb-5">User Personas ({personas.personas.length})</h2>
+          <h2 className="mb-5">User Personas ({(personas.personas ?? []).length})</h2>
           <div className="grid gap-4">
-            {personas.personas.map((persona, i) => (
+            {(personas.personas ?? []).map((persona, i) => (
               <div key={i} className="rounded-lg border border-border p-4">
                 <div className="mb-3">
                   <div className="font-medium">{persona.name}</div>

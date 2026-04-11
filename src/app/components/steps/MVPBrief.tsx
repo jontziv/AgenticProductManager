@@ -52,7 +52,7 @@ export function MVPBrief() {
             <h3>Core Features</h3>
           </div>
           <div className="grid gap-3">
-            {mvpScope.core_features.map((feature, i) => (
+            {(mvpScope.core_features ?? []).map((feature, i) => (
               <div
                 key={i}
                 className="flex items-start gap-3 rounded-lg bg-accent/50 p-4"
@@ -75,7 +75,7 @@ export function MVPBrief() {
             <h3>Success Metrics</h3>
           </div>
           <div className="space-y-4">
-            {successMetrics.metrics.map((metric, i) => (
+            {(successMetrics.metrics ?? []).map((metric, i) => (
               <div key={i} className="grid md:grid-cols-[140px_1fr_140px] gap-4 items-center">
                 <div className="text-sm text-muted-foreground">{metric.category}</div>
                 <div>{metric.metric_name}</div>
@@ -96,7 +96,7 @@ export function MVPBrief() {
                 <div className="text-sm">Included in MVP</div>
               </div>
               <ul className="space-y-2 pl-4">
-                {mvpScope.in_scope.map((item, i) => (
+                {(mvpScope.in_scope ?? []).map((item, i) => (
                   <li key={i} className="text-sm">{item}</li>
                 ))}
               </ul>
@@ -107,7 +107,7 @@ export function MVPBrief() {
                 <div className="text-sm">Deferred to Later</div>
               </div>
               <ul className="space-y-2 pl-4">
-                {mvpScope.out_of_scope.map((item, i) => (
+                {(mvpScope.out_of_scope ?? []).map((item, i) => (
                   <li key={i} className="text-sm text-muted-foreground">{item}</li>
                 ))}
               </ul>

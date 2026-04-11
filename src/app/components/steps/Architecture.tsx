@@ -58,7 +58,7 @@ export function Architecture() {
             <h3>Key Components</h3>
           </div>
           <div className="grid md:grid-cols-2 gap-3">
-            {recommended.components.map((component, i) => (
+            {(recommended.components ?? []).map((component, i) => (
               <div
                 key={i}
                 className="rounded-lg border border-border bg-accent/30 p-4"
@@ -82,7 +82,7 @@ export function Architecture() {
         <section className="rounded-lg border border-border bg-card p-6">
           <h3 className="mb-4">Technical Considerations</h3>
           <ul className="space-y-3">
-            {architecture.technical_considerations.map((consideration, i) => (
+            {(architecture.technical_considerations ?? []).map((consideration, i) => (
               <li key={i} className="flex items-start gap-3">
                 <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <p>{consideration}</p>
