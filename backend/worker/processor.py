@@ -9,6 +9,8 @@ from typing import Any
 
 import structlog
 
+from groq import RateLimitError
+
 from app.db.queries import JobsDB, RunsDB, ArtifactsDB, QAReportsDB, ExportsDB
 from app.graph.graph import get_graph
 from app.graph.state import WorkflowState
@@ -50,6 +52,14 @@ async def process_job(job: dict[str, Any]) -> None:
 
         await JobsDB.update_status(job_id, "completed")
         log.info("job_completed")
+
+    except RateLimitError as exc:
+        # Groq daily token limit hit — retrying re-runs all LLM calls and burns
+        # the remaining quota. Fail immediately without re-queuing.
+        err_msg = "Groq rate limit exceeded. Wait until the daily quota resets before resubmitting."
+        log.error("job_rate_limited", error=str(exc))
+        await JobsDB.update_status(job_id, "failed", error_message=err_msg)
+        await RunsDB.update_status(run_id, "failed")
 
     except Exception as exc:
         log.exception("job_failed", error=str(exc))

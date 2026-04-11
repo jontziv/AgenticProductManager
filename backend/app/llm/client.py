@@ -76,12 +76,10 @@ async def generate_structured(
             return result
 
         except RateLimitError:
-            backoff = RETRY_BACKOFF_BASE ** (attempt + 1)
-            log.warning("rate_limited", attempt=attempt + 1, backoff_s=backoff)
-            if attempt < MAX_RETRIES - 1:
-                await asyncio.sleep(backoff)
-            else:
-                raise
+            # Daily token limit — short backoff won't help. Fail fast so the job
+            # is not retried and doesn't burn the remaining quota.
+            log.error("rate_limit_exceeded", node=node_name, run_id=run_id)
+            raise
 
         except APIError as exc:
             if exc.status_code and exc.status_code >= 500:

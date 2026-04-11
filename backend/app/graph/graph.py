@@ -30,7 +30,6 @@ from app.graph.nodes.generate import (
 )
 from app.graph.nodes.qa import (
     qa_evaluation_node,
-    remediation_router_node,
     human_review_gate_node,
     approval_versioning_node,
     export_pack_node,
@@ -51,13 +50,8 @@ def route_after_missing_info(state: WorkflowState) -> str:
 
 
 def route_after_qa(state: WorkflowState) -> str:
-    qa = state.get("qa_report", {})
-    attempt = state.get("qa_attempt", 0)
-    has_hard_fails = qa.get("critical_issues", 0) > 0
-    max_attempts_reached = attempt >= 3
-
-    if has_hard_fails and not max_attempts_reached:
-        return "remediation_router"
+    # QA is deterministic and informational — result is surfaced to the human
+    # reviewer. Automatic remediation loops burn tokens without fixing artifacts.
     return "human_review_gate"
 
 
@@ -92,7 +86,6 @@ def build_graph() -> Any:
     builder.add_node("generate_architecture", generate_architecture_node)
     builder.add_node("consistency_check", consistency_check_node)
     builder.add_node("qa_evaluation", qa_evaluation_node)
-    builder.add_node("remediation_router", remediation_router_node)
     builder.add_node("human_review_gate", human_review_gate_node)
     builder.add_node("approval_versioning", approval_versioning_node)
     builder.add_node("build_export_pack", export_pack_node)
@@ -127,12 +120,8 @@ def build_graph() -> Any:
     builder.add_conditional_edges(
         "qa_evaluation",
         route_after_qa,
-        {
-            "remediation_router": "remediation_router",
-            "human_review_gate": "human_review_gate",
-        },
+        {"human_review_gate": "human_review_gate"},
     )
-    builder.add_edge("remediation_router", "qa_evaluation")
     builder.add_conditional_edges(
         "human_review_gate",
         route_after_human_review,
