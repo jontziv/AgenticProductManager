@@ -3,6 +3,7 @@ import { Outlet, useLocation, useParams, Link } from "react-router";
 import { WorkflowProvider, useWorkflow } from "../context/WorkflowContext";
 import { runsApi } from "../api/runs";
 import { jobsApi } from "../api/jobs";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Check, Zap, LayoutDashboard } from "lucide-react";
 import type { RunStatus } from "../types/api";
 
@@ -134,7 +135,9 @@ export function WorkflowLayout() {
         </header>
 
         <main className="mx-auto max-w-6xl px-6 py-10">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </WorkflowProvider>

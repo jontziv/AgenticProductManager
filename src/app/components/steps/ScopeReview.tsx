@@ -171,14 +171,20 @@ export function ScopeReview() {
                   <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
                     <span className="text-xs font-medium text-foreground">
-                      {entry.node.replace(/_/g, " ")}
+                      {(entry.node ?? "").replace(/_/g, " ")}
                     </span>
-                    <span className="mx-1.5 text-muted-foreground/40 text-xs">&mdash;</span>
-                    <span className="text-xs text-muted-foreground">{entry.summary}</span>
+                    {entry.summary && (
+                      <>
+                        <span className="mx-1.5 text-muted-foreground/40 text-xs">&mdash;</span>
+                        <span className="text-xs text-muted-foreground">{entry.summary}</span>
+                      </>
+                    )}
                   </div>
-                  <span className="shrink-0 text-[10px] text-muted-foreground/50">
-                    {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                  </span>
+                  {entry.ts && (
+                    <span className="shrink-0 text-[10px] text-muted-foreground/50">
+                      {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </span>
+                  )}
                 </div>
               ))}
               <div ref={logEndRef} />

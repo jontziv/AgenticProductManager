@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { runsApi } from "../../api/runs";
 import { useAuth } from "../../context/AuthContext";
 import { RunCard } from "./RunCard";
+import { ErrorBoundary } from "../ErrorBoundary";
 import type { IntakeRunSummary } from "../../types/api";
 import { Plus, Loader2, Zap, LogOut } from "lucide-react";
 
@@ -59,6 +60,7 @@ export function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6 py-10">
+        <ErrorBoundary>
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="mb-1">Intake Runs</h1>
@@ -113,6 +115,7 @@ export function Dashboard() {
             ))}
           </div>
         )}
+        </ErrorBoundary>
       </main>
     </div>
   );

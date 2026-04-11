@@ -4,7 +4,6 @@ All mutations are parameterized — no string interpolation.
 Column names match supabase/migrations/001_initial_schema.sql exactly.
 """
 
-import json
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -98,7 +97,7 @@ class RunsDB:
         async with pool.acquire() as conn:
             await conn.execute(
                 "UPDATE intake_runs SET run_logs = run_logs || $2::jsonb WHERE id = $1",
-                run_id, json.dumps([entry]),
+                run_id, [entry],
             )
 
     @staticmethod
@@ -180,7 +179,7 @@ class ArtifactsDB:
                 RETURNING *
                 """,
                 artifact_id, run_id, user_id, artifact_type, version,
-                json.dumps(content_json),
+                content_json,
             )
         return dict(row)  # type: ignore[arg-type]
 
@@ -245,7 +244,7 @@ class QAReportsDB:
                 report_id, run_id, user_id,
                 overall_score, max_score, pass_rate,
                 critical_issues, export_ready,
-                json.dumps(checks), json.dumps(remediation_tasks),
+                checks, remediation_tasks,
             )
         return dict(row)  # type: ignore[arg-type]
 
