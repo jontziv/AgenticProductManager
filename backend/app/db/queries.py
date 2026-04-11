@@ -288,19 +288,22 @@ class JobsDB:
     ) -> None:
         pool = await get_db_pool()
         async with pool.acquire() as conn:
+            # $2 is typed as job_status (from SET clause); $5 is the same value
+            # typed as text for CASE WHEN string comparisons — asyncpg cannot
+            # reconcile a single parameter used in both enum and text contexts.
             await conn.execute(
                 """
                 UPDATE queued_jobs
-                SET status = $2,
+                SET status = $2::job_status,
                     error_message = COALESCE($3, error_message),
                     updated_at = $4,
-                    started_at = CASE WHEN $2 = 'running' AND started_at IS NULL
+                    started_at = CASE WHEN $5 = 'running' AND started_at IS NULL
                                       THEN $4 ELSE started_at END,
-                    completed_at = CASE WHEN $2 IN ('completed','failed','cancelled')
+                    completed_at = CASE WHEN $5 IN ('completed','failed','cancelled')
                                         THEN $4 ELSE completed_at END
                 WHERE id = $1
                 """,
-                job_id, status, error_message, _now(),
+                job_id, status, error_message, _now(), status,
             )
 
     @staticmethod

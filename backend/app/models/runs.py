@@ -68,12 +68,14 @@ class RunResponse(BaseModel):
     updated_at: datetime
     completed_at: datetime | None
     artifacts: list[Any] = []
+    latest_qa_report: dict[str, Any] | None = None
 
     @classmethod
     def from_db(
         cls,
         row: dict[str, Any],
         artifacts: list[dict[str, Any]] | None = None,
+        qa_report: dict[str, Any] | None = None,
     ) -> "RunResponse":
         from app.models.artifacts import ArtifactResponse  # avoid circular
         import json as _json
@@ -109,6 +111,7 @@ class RunResponse(BaseModel):
             updated_at=row["updated_at"],
             completed_at=row.get("completed_at"),
             artifacts=[ArtifactResponse.from_db(a) for a in (artifacts or [])],
+            latest_qa_report=qa_report,
         )
 
 

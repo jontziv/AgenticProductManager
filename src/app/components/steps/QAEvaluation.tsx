@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useWorkflow } from "../../context/WorkflowContext";
 import { evaluateArtifacts } from "../../utils/evaluators";
 import { EvaluationReport } from "../../types/evaluation";
@@ -17,6 +17,7 @@ import {
 
 export function QAEvaluation() {
   const navigate = useNavigate();
+  const { runId } = useParams<{ runId: string }>();
   const { state, setCurrentStep } = useWorkflow();
   const [isEvaluating, setIsEvaluating] = useState(true);
   const [report, setReport] = useState<EvaluationReport | null>(null);
@@ -44,13 +45,13 @@ export function QAEvaluation() {
   }, [state.artifacts, navigate]);
 
   const handleContinue = () => {
-    setCurrentStep(6);
-    navigate("/export");
+    setCurrentStep(5);
+    navigate(`/runs/${runId}/approval`);
   };
 
   const handleBack = () => {
-    setCurrentStep(4);
-    navigate("/architecture");
+    setCurrentStep(3);
+    navigate(`/runs/${runId}/architecture`);
   };
 
   const toggleCategory = (categoryName: string) => {
@@ -344,7 +345,7 @@ export function QAEvaluation() {
           disabled={!canProceed}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {canProceed ? "Proceed to Export" : "Fix Issues to Continue"}
+          {canProceed ? "Proceed to Approval" : "Fix Issues to Continue"}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>

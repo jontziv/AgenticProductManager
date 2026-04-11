@@ -24,6 +24,7 @@ async def request_export(body: ExportRequest, current_user: CurrentUser) -> dict
 
     job = await JobQueue.enqueue(
         run_id=body.run_id,
+        user_id=current_user.user_id,
         job_type=JobType.GENERATE_EXPORT,
         payload={"run_id": body.run_id, "formats": [f.value for f in body.formats]},
     )

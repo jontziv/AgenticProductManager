@@ -57,6 +57,7 @@ async def regenerate_artifact(
 
     job = await JobQueue.enqueue(
         run_id=run_id,
+        user_id=current_user.user_id,
         job_type=JobType.REGENERATE_ARTIFACT,
         payload={"run_id": run_id, "artifact_type": artifact_type.value},
     )
@@ -84,6 +85,7 @@ async def trigger_qa_evaluation(run_id: str, current_user: CurrentUser) -> dict:
 
     job = await JobQueue.enqueue(
         run_id=run_id,
+        user_id=current_user.user_id,
         job_type=JobType.RUN_QA,
         payload={"run_id": run_id},
     )

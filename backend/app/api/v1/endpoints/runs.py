@@ -2,6 +2,7 @@
 Run endpoints: CRUD for intake runs, trigger orchestration, approvals.
 """
 
+import asyncio
 from typing import Annotated
 from uuid import uuid4
 
@@ -9,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import structlog
 
 from app.deps import CurrentUser
-from app.db.queries import RunsDB, ArtifactsDB, ApprovalsDB, JobsDB
+from app.db.queries import RunsDB, ArtifactsDB, ApprovalsDB, JobsDB, QAReportsDB
 from app.models.runs import (
     CreateRunRequest,
     RunResponse,
@@ -65,8 +66,11 @@ async def get_run(run_id: str, current_user: CurrentUser) -> RunResponse:
     run = await RunsDB.get(run_id, current_user.user_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    artifacts = await ArtifactsDB.list_by_run(run_id)
-    return RunResponse.from_db(run, artifacts=artifacts)
+    artifacts, qa_report = await asyncio.gather(
+        ArtifactsDB.list_by_run(run_id),
+        QAReportsDB.get_latest(run_id),
+    )
+    return RunResponse.from_db(run, artifacts=artifacts, qa_report=qa_report)
 
 
 @router.post("/{run_id}/cancel", status_code=status.HTTP_204_NO_CONTENT)
@@ -100,7 +104,7 @@ async def submit_approval(
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    if run["status"] not in ("qa_passed", "approved"):
+    if run["status"] not in ("needs_review", "qa_passed"):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Run is in status '{run['status']}', not awaiting approval",
