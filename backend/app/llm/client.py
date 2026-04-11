@@ -33,22 +33,31 @@ INSTRUCTOR_MAX_RETRIES = 1
 # Maximum seconds to wait on a TPM retry. The API reports the exact wait time;
 # we cap it so a single call cannot stall a job indefinitely.
 TPM_RETRY_MAX_WAIT = 65  # seconds
-TPM_MAX_ATTEMPTS = 3
+TPM_MAX_ATTEMPTS = 5
 
 
 def _parse_retry_after(error_message: str) -> float | None:
     """Extract the retry-after seconds from a Groq 429 error message.
 
-    Groq messages contain: 'Please try again in 35.91s' or '1m2.3s'.
+    Groq returns several formats:
+      'Please try again in 35.91s'   → 35.91s
+      'Please try again in 1m2.3s'   → 62.3s
+      'Please try again in 280ms'    → 0.28s
     Returns seconds as a float, or None if the format is not recognised.
     """
-    # Format: Xm Y.Zs  or  Y.Zs
+    # Milliseconds: e.g. "280ms"
+    ms = re.search(r"try again in (\d+(?:\.\d+)?)ms", error_message)
+    if ms:
+        return float(ms.group(1)) / 1000
+
+    # Seconds with optional minutes prefix: e.g. "35.91s" or "1m2.3s"
     m = re.search(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", error_message)
-    if not m:
-        return None
-    minutes = float(m.group(1) or 0)
-    seconds = float(m.group(2))
-    return minutes * 60 + seconds
+    if m:
+        minutes = float(m.group(1) or 0)
+        seconds = float(m.group(2))
+        return minutes * 60 + seconds
+
+    return None
 
 
 def _is_tpm_error(exc: RateLimitError) -> bool:
@@ -142,8 +151,11 @@ async def generate_structured(
                         )
                         raise
 
-                    wait = _parse_retry_after(error_str) or 60.0
-                    wait = min(wait + 1.0, TPM_RETRY_MAX_WAIT)  # +1s safety margin
+                    parsed = _parse_retry_after(error_str)
+                    # Floor at 1s so sub-second waits (e.g. "280ms") still give
+                    # the sliding window time to tick over before retry.
+                    wait = max(parsed + 1.0 if parsed is not None else 60.0, 1.0)
+                    wait = min(wait, TPM_RETRY_MAX_WAIT)
                     log.warning(
                         "tpm_limit_hit_retrying",
                         node=node_name,
