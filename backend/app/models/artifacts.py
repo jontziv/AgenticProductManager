@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ArtifactTypeEnum(str, Enum):
@@ -21,6 +21,23 @@ class ArtifactTypeEnum(str, Enum):
     EXPORT_PACK = "export_pack"
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _coerce_str_list(v: list) -> list[str]:
+    """Coerce a list that may contain dicts (LLM returning objects) to list[str].
+
+    The LLM sometimes returns structured objects for fields typed as list[str]
+    (e.g. out_of_scope, in_scope). Extract 'name' if present, else str().
+    """
+    result = []
+    for item in v:
+        if isinstance(item, dict):
+            result.append(item.get("name") or item.get("description") or str(item))
+        else:
+            result.append(str(item))
+    return result
+
+
 # ── Artifact content schemas ──────────────────────────────────────────────────
 
 class ProblemFraming(BaseModel):
@@ -30,6 +47,11 @@ class ProblemFraming(BaseModel):
     goals: list[str] = Field(default_factory=list)
     non_goals: list[str] = Field(default_factory=list)
     assumptions: list[str] = Field(default_factory=list)
+
+    @field_validator("goals", "non_goals", "assumptions", mode="before")
+    @classmethod
+    def coerce_str_lists(cls, v: list) -> list[str]:
+        return _coerce_str_list(v) if isinstance(v, list) else v
 
 
 class Persona(BaseModel):
@@ -59,6 +81,11 @@ class MvpScope(BaseModel):
     out_of_scope: list[str]
     core_features: list[CoreFeature]
     deferred_features: list[str] = Field(default_factory=list)
+
+    @field_validator("in_scope", "out_of_scope", "deferred_features", mode="before")
+    @classmethod
+    def coerce_str_lists(cls, v: list) -> list[str]:
+        return _coerce_str_list(v)
 
 
 class SuccessMetric(BaseModel):
