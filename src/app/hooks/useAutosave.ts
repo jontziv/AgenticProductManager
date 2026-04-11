@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-const DEBOUNCE_MS = 800;
+const DEBOUNCE_MS = 5 * 60 * 1000; // 5 minutes
 const STORAGE_PREFIX = "pm_sidekick_draft_";
 
 export function useAutosave<T>(key: string, value: T) {
