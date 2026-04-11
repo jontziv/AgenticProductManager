@@ -167,46 +167,8 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
                 "ts": datetime.now(timezone.utc).isoformat(),
             })
 
-    # ── Override early exit when all required intake fields are present ────────
-    # The LLM's detect_missing_info check is advisory. If the user supplied all
-    # required fields (business_idea + target_users), we proceed even when
-    # can_proceed=False, making explicit assumptions from the LLM's suggestions.
+    # missing_info_flags are advisory assumptions — the graph always proceeds now
     missing_flags: list[str] = final_state.get("missing_info_flags") or []  # type: ignore[call-overload]
-    can_proceed: bool = bool(final_state.get("can_proceed", True))  # type: ignore[call-overload]
-
-    required_fields_present = bool(
-        (run.get("raw_input") or "").strip()
-        and (run.get("target_users") or "").strip()
-    )
-
-    if not can_proceed and required_fields_present:
-        log.info(
-            "overriding_can_proceed",
-            reason="required fields present, proceeding with assumptions",
-            missing_flags=missing_flags,
-        )
-        # Re-run graph with can_proceed forced to True and flags surfaced as assumptions
-        initial_state_override: WorkflowState = {
-            **initial_state,
-            "can_proceed": True,
-            "missing_info_flags": missing_flags,
-        }
-        final_state = {}
-        async for event in graph.astream(initial_state_override, config={"configurable": {"thread_id": f"{run_id}-retry"}}):
-            node_name = list(event.keys())[0] if event else None
-            if node_name:
-                node_updates = list(event.values())[0] if event else {}
-                log.debug("graph_node_complete_retry", node=node_name)
-                final_state.update(node_updates)
-                summary = _node_summary(node_name, node_updates)
-                await RunsDB.append_log(run_id, {
-                    "node": node_name,
-                    "summary": summary,
-                    "ts": datetime.now(timezone.utc).isoformat(),
-                })
-        # Refresh flags after the second pass
-        missing_flags = final_state.get("missing_info_flags") or []  # type: ignore[call-overload]
-        can_proceed = bool(final_state.get("can_proceed", True))  # type: ignore[call-overload]
 
     # Persist generated artifacts
     artifact_keys = [
@@ -233,28 +195,14 @@ async def _orchestrate_run(run_id: str, user_id: str, job_id: str, log: Any) -> 
             remediation_tasks=qa.get("remediation_tasks", []),
         )
 
-    # If the graph exited early because of missing info, surface that clearly.
-    # The run stays in needs_review and stores the flags so the UI can prompt
-    # the user to resubmit with more detail.
-    missing_flags: list[str] = final_state.get("missing_info_flags") or []  # type: ignore[call-overload]
-    can_proceed: bool = bool(final_state.get("can_proceed", True))  # type: ignore[call-overload]
-
-    if not can_proceed or (missing_flags and not any(final_state.get(k) for k in artifact_keys)):
-        # Early exit — no artifacts generated
-        idea_type = final_state.get("idea_classification")  # type: ignore[call-overload]
-        extra: dict[str, Any] = {"langgraph_thread_id": run_id, "missing_info": json.dumps(missing_flags)}
-        if idea_type:
-            extra["idea_type"] = idea_type
-        await RunsDB.update_status(run_id, "needs_review", **extra)
-        log.info("orchestration_needs_more_info", missing=missing_flags)
-        return
-
-    # Full run completed — update status
+    # Update run status — surface any advisory flags as assumptions on the run record
     idea_type = final_state.get("idea_classification")  # type: ignore[call-overload]
-    extra_full: dict[str, Any] = {"langgraph_thread_id": run_id}
+    extra: dict[str, Any] = {"langgraph_thread_id": run_id}
     if idea_type:
-        extra_full["idea_type"] = idea_type
-    await RunsDB.update_status(run_id, "needs_review", **extra_full)
+        extra["idea_type"] = idea_type
+    if missing_flags:
+        extra["missing_info"] = json.dumps(missing_flags)
+    await RunsDB.update_status(run_id, "needs_review", **extra)
 
     log.info("orchestration_complete", artifacts=len(artifact_keys))
 

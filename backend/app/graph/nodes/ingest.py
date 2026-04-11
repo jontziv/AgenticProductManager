@@ -116,7 +116,7 @@ async def transcribe_audio_node(state: WorkflowState) -> dict[str, Any]:
 
 
 async def detect_missing_info_node(state: WorkflowState) -> dict[str, Any]:
-    """Detect critical missing data; set can_proceed flag."""
+    """Identify gaps and surface them as assumptions. Never blocks execution."""
     log = logger.bind(run_id=state.get("run_id"), node="detect_missing_info")
     log.info("node_start")
 
@@ -124,6 +124,8 @@ async def detect_missing_info_node(state: WorkflowState) -> dict[str, Any]:
     submission_text = json.dumps({
         "business_idea": brief.get("business_idea"),
         "target_users": brief.get("target_users"),
+        "raw_requirements": brief.get("raw_requirements"),
+        "meeting_notes": brief.get("meeting_notes"),
         "constraints": brief.get("constraints"),
         "timeline": brief.get("timeline"),
     }, indent=2)
@@ -142,12 +144,12 @@ async def detect_missing_info_node(state: WorkflowState) -> dict[str, Any]:
     log.info(
         "missing_info_result",
         missing=result.missing_fields,
-        can_proceed=result.can_proceed,
+        can_proceed=True,  # always proceed; flags are advisory assumptions only
     )
 
     return {
         "missing_info_flags": result.missing_fields,
-        "can_proceed": result.can_proceed,
+        "can_proceed": True,  # gate removed — form validation guarantees minimum data
         "current_node": "detect_missing_info",
     }
 

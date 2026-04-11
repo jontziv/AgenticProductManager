@@ -46,8 +46,7 @@ def route_after_ingest(state: WorkflowState) -> str:
 
 
 def route_after_missing_info(state: WorkflowState) -> str:
-    if not state.get("can_proceed", True):
-        return END  # type: ignore[return-value]
+    # Always proceed. Flags are surfaced as assumptions only.
     return "classify_idea"
 
 
@@ -111,7 +110,7 @@ def build_graph() -> Any:
     builder.add_conditional_edges(
         "detect_missing_info",
         route_after_missing_info,
-        {"classify_idea": "classify_idea", END: END},
+        {"classify_idea": "classify_idea"},
     )
     builder.add_edge("classify_idea", "choose_pattern")
     builder.add_edge("choose_pattern", "create_problem_framing")
