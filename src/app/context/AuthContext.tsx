@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../api/client";
 
@@ -25,10 +25,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setState({ user: session?.user ?? null, session, loading: false });
-    });
-
+    // onAuthStateChange fires with INITIAL_SESSION immediately, which covers the
+    // initial getSession() call. Using only one source prevents double setState
+    // on mount and eliminates spurious re-renders of all auth consumers.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setState({ user: session?.user ?? null, session, loading: false });
     });
@@ -36,28 +35,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message);
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password });
     if (error) throw new Error(error.message);
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw new Error(error.message);
-  };
+  }, []);
 
-  const signInWithMagicLink = async (email: string) => {
+  const signInWithMagicLink = useCallback(async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({ email });
     if (error) throw new Error(error.message);
-  };
+  }, []);
+
+  // Memoize context value so consumers only re-render when user/session/loading
+  // actually change — not on every AuthProvider render.
+  const value = useMemo<AuthContextType>(
+    () => ({ ...state, signIn, signUp, signOut, signInWithMagicLink }),
+    [state, signIn, signUp, signOut, signInWithMagicLink],
+  );
 
   return (
-    <AuthContext.Provider value={{ ...state, signIn, signUp, signOut, signInWithMagicLink }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

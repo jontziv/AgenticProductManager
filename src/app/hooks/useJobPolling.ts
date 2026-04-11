@@ -27,6 +27,15 @@ export function useJobPolling({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isMountedRef = useRef(true);
 
+  // Store callbacks in refs so the interval doesn't need to restart when the
+  // caller's inline functions get new references on every re-render.
+  const onUpdateRef = useRef(onUpdate);
+  const onCompleteRef = useRef(onComplete);
+  const onErrorRef = useRef(onError);
+  onUpdateRef.current = onUpdate;
+  onCompleteRef.current = onComplete;
+  onErrorRef.current = onError;
+
   const poll = useCallback(async () => {
     if (!runId || !enabled) return;
 
@@ -37,7 +46,7 @@ export function useJobPolling({
 
       if (!job || !isMountedRef.current) return;
 
-      onUpdate?.(job);
+      onUpdateRef.current?.(job);
 
       if (TERMINAL_STATUSES.includes(job.status)) {
         if (intervalRef.current) {
@@ -45,15 +54,15 @@ export function useJobPolling({
           intervalRef.current = null;
         }
         if (job.status === "completed") {
-          onComplete?.(job);
+          onCompleteRef.current?.(job);
         } else if (job.status === "failed") {
-          onError?.(job);
+          onErrorRef.current?.(job);
         }
       }
     } catch {
       // Polling errors are silent — job may not exist yet
     }
-  }, [runId, jobId, enabled, onUpdate, onComplete, onError]);
+  }, [runId, jobId, enabled]); // callbacks removed from deps — stored in refs above
 
   useEffect(() => {
     isMountedRef.current = true;

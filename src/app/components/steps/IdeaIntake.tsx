@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router";
-import { useAuth } from "../../context/AuthContext";
 import { runsApi } from "../../api/runs";
 import { useAutosave, loadDraft, clearDraft } from "../../hooks/useAutosave";
 import type { CreateRunPayload } from "../../types/api";
@@ -51,7 +50,6 @@ const EMPTY_FORM: FormData = {
 
 export function IdeaIntake() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [form, setForm] = useState<FormData>(() => {
     const draft = loadDraft<FormData>(DRAFT_KEY);
     // Merge with EMPTY_FORM so any old draft missing new required fields gets defaults
@@ -62,11 +60,6 @@ export function IdeaIntake() {
   const [error, setError] = useState<string | null>(null);
 
   useAutosave(DRAFT_KEY, form);
-
-  // Redirect to login if somehow landed here unauthenticated
-  useEffect(() => {
-    if (!user) navigate("/login");
-  }, [user, navigate]);
 
   const isValid = form.title?.trim() && form.business_idea?.trim() && form.target_users?.trim() && form.raw_requirements?.trim();
 
