@@ -170,6 +170,7 @@ async def classify_idea_node(state: WorkflowState) -> dict[str, Any]:
         messages=messages,
         response_model=ClassificationResult,
         role=ModelRole.FAST,
+        max_tokens=256,  # classification is tiny: idea_type, confidence, rationale
         run_id=state.get("run_id"),
         node_name="classify_idea",
     )

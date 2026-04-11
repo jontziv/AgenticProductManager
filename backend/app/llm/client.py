@@ -4,6 +4,7 @@ Every generation call goes through this module.
 """
 
 import asyncio
+import re
 import time
 from typing import TypeVar, Type
 from functools import lru_cache
@@ -20,13 +21,44 @@ logger = structlog.get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
-# Retry config — only for genuine transient 5xx errors.
-# Rate limit errors (429) are caught separately and never retried.
+# Retry config for transient 5xx server errors only.
+# TPM (per-minute) rate limits are caught separately and retried after the
+# reported cooldown. TPD (daily) rate limits fail immediately — never retry.
 # instructor has its own internal retry loop for schema validation; we cap it at
 # 1 to prevent silent token multiplication when the model produces invalid JSON.
-MAX_RETRIES = 2
-RETRY_BACKOFF_BASE = 1.5  # seconds
+MAX_SERVER_RETRIES = 2
+SERVER_RETRY_BACKOFF = 1.5  # seconds
 INSTRUCTOR_MAX_RETRIES = 1
+
+# Maximum seconds to wait on a TPM retry. The API reports the exact wait time;
+# we cap it so a single call cannot stall a job indefinitely.
+TPM_RETRY_MAX_WAIT = 65  # seconds
+TPM_MAX_ATTEMPTS = 3
+
+
+def _parse_retry_after(error_message: str) -> float | None:
+    """Extract the retry-after seconds from a Groq 429 error message.
+
+    Groq messages contain: 'Please try again in 35.91s' or '1m2.3s'.
+    Returns seconds as a float, or None if the format is not recognised.
+    """
+    # Format: Xm Y.Zs  or  Y.Zs
+    m = re.search(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", error_message)
+    if not m:
+        return None
+    minutes = float(m.group(1) or 0)
+    seconds = float(m.group(2))
+    return minutes * 60 + seconds
+
+
+def _is_tpm_error(exc: RateLimitError) -> bool:
+    """Return True if this is a per-minute quota error (retryable)."""
+    return "tokens per minute" in str(exc).lower()
+
+
+def _is_tpd_error(exc: RateLimitError) -> bool:
+    """Return True if this is the daily quota error (not retryable)."""
+    return "tokens per day" in str(exc).lower()
 
 
 @lru_cache(maxsize=1)
@@ -45,60 +77,103 @@ async def generate_structured(
     response_model: Type[T],
     role: ModelRole = ModelRole.STRUCTURED,
     temperature: float = 0.2,
-    max_tokens: int = 4096,
+    max_tokens: int = 2048,
     run_id: str | None = None,
     node_name: str | None = None,
 ) -> T:
     """
     Generate a structured output validated against response_model.
-    Retries on transient errors with exponential backoff.
+
+    Retry policy:
+    - TPD (tokens per day): fail immediately — daily quota cannot be recovered by waiting.
+    - TPM (tokens per minute): wait the reported cooldown, retry up to TPM_MAX_ATTEMPTS.
+    - 5xx server errors: exponential backoff, up to MAX_SERVER_RETRIES.
     """
     model = get_model(role)
     log = logger.bind(model=model, node=node_name, run_id=run_id)
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            t0 = time.perf_counter()
+    tpm_attempt = 0
 
-            # instructor runs synchronously — run in thread pool.
-            # max_retries=1 caps instructor's internal schema-validation retry loop
-            # so a single malformed response doesn't silently burn 3x the tokens.
-            client = _get_instructor_client()
-            result = await asyncio.to_thread(
-                client.chat.completions.create,
-                model=model,
-                response_model=response_model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                max_retries=INSTRUCTOR_MAX_RETRIES,
-            )
+    while True:
+        for server_attempt in range(MAX_SERVER_RETRIES):
+            try:
+                t0 = time.perf_counter()
 
-            duration_ms = (time.perf_counter() - t0) * 1000
-            log.info(
-                "llm_call_success",
-                attempt=attempt + 1,
-                duration_ms=round(duration_ms, 1),
-            )
-            return result
+                # instructor runs synchronously — run in thread pool.
+                # max_retries=1 caps instructor's internal schema-validation retry loop.
+                client = _get_instructor_client()
+                result = await asyncio.to_thread(
+                    client.chat.completions.create,
+                    model=model,
+                    response_model=response_model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    max_retries=INSTRUCTOR_MAX_RETRIES,
+                )
 
-        except RateLimitError:
-            # Daily token limit — short backoff won't help. Fail fast so the job
-            # is not retried and doesn't burn the remaining quota.
-            log.error("rate_limit_exceeded", node=node_name, run_id=run_id)
-            raise
+                duration_ms = (time.perf_counter() - t0) * 1000
+                log.info(
+                    "llm_call_success",
+                    attempt=server_attempt + 1,
+                    tpm_attempt=tpm_attempt,
+                    duration_ms=round(duration_ms, 1),
+                )
+                return result
 
-        except APIError as exc:
-            if exc.status_code and exc.status_code >= 500:
-                backoff = RETRY_BACKOFF_BASE ** (attempt + 1)
-                log.warning("groq_server_error", attempt=attempt + 1, backoff_s=backoff)
-                if attempt < MAX_RETRIES - 1:
-                    await asyncio.sleep(backoff)
-                    continue
-            log.error("llm_call_failed", attempt=attempt + 1, error=str(exc))
-            raise
+            except RateLimitError as exc:
+                error_str = str(exc)
 
-    raise RuntimeError(f"LLM call failed after {MAX_RETRIES} attempts")
+                if _is_tpd_error(exc):
+                    # Daily quota exhausted — retrying wastes the remaining tokens.
+                    # The job processor catches this and fails the job immediately.
+                    log.error("tpd_limit_exceeded", node=node_name, run_id=run_id)
+                    raise
+
+                if _is_tpm_error(exc):
+                    # Per-minute quota — temporary. Wait the reported cooldown.
+                    tpm_attempt += 1
+                    if tpm_attempt >= TPM_MAX_ATTEMPTS:
+                        log.error(
+                            "tpm_limit_exhausted",
+                            node=node_name,
+                            run_id=run_id,
+                            attempts=tpm_attempt,
+                        )
+                        raise
+
+                    wait = _parse_retry_after(error_str) or 60.0
+                    wait = min(wait + 1.0, TPM_RETRY_MAX_WAIT)  # +1s safety margin
+                    log.warning(
+                        "tpm_limit_hit_retrying",
+                        node=node_name,
+                        wait_s=wait,
+                        attempt=tpm_attempt,
+                    )
+                    await asyncio.sleep(wait)
+                    break  # exit inner server-retry loop → re-enter outer TPM loop
+
+                # Unknown 429 flavour — fail immediately
+                log.error("rate_limit_exceeded_unknown", node=node_name, run_id=run_id)
+                raise
+
+            except APIError as exc:
+                if exc.status_code and exc.status_code >= 500:
+                    backoff = SERVER_RETRY_BACKOFF ** (server_attempt + 1)
+                    log.warning(
+                        "groq_server_error",
+                        attempt=server_attempt + 1,
+                        backoff_s=backoff,
+                    )
+                    if server_attempt < MAX_SERVER_RETRIES - 1:
+                        await asyncio.sleep(backoff)
+                        continue
+                log.error("llm_call_failed", attempt=server_attempt + 1, error=str(exc))
+                raise
+
+        else:
+            # Server retry loop exhausted without TPM break
+            raise RuntimeError(f"LLM call failed after {MAX_SERVER_RETRIES} server retries")
 
 
 async def transcribe_audio(audio_bytes: bytes, filename: str, run_id: str | None = None) -> str:

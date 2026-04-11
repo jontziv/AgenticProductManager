@@ -39,7 +39,8 @@ async def create_problem_framing_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=ProblemFraming,
-        role=ModelRole.STRUCTURED, run_id=state.get("run_id"), node_name="create_problem_framing",
+        role=ModelRole.STRUCTURED, max_tokens=1024,
+        run_id=state.get("run_id"), node_name="create_problem_framing",
     )
     return {"problem_framing": result.model_dump(), "current_node": "create_problem_framing"}
 
@@ -55,7 +56,8 @@ async def generate_personas_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=Personas,
-        role=ModelRole.STRUCTURED, run_id=state.get("run_id"), node_name="generate_personas",
+        role=ModelRole.STRUCTURED, max_tokens=1024,
+        run_id=state.get("run_id"), node_name="generate_personas",
     )
     return {"personas": result.model_dump(), "current_node": "generate_personas"}
 
@@ -74,7 +76,8 @@ async def generate_mvp_scope_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=MvpScope,
-        role=ModelRole.STRUCTURED, run_id=state.get("run_id"), node_name="generate_mvp_scope",
+        role=ModelRole.STRUCTURED, max_tokens=1500,
+        run_id=state.get("run_id"), node_name="generate_mvp_scope",
     )
     return {"mvp_scope": result.model_dump(), "current_node": "generate_mvp_scope"}
 
@@ -90,7 +93,8 @@ async def generate_success_metrics_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=SuccessMetrics,
-        role=ModelRole.STRUCTURED, run_id=state.get("run_id"), node_name="generate_success_metrics",
+        role=ModelRole.STRUCTURED, max_tokens=1024,
+        run_id=state.get("run_id"), node_name="generate_success_metrics",
     )
     return {"success_metrics": result.model_dump(), "current_node": "generate_success_metrics"}
 
@@ -108,7 +112,8 @@ async def generate_user_stories_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=UserStories,
-        role=ModelRole.STRUCTURED, run_id=state.get("run_id"), node_name="generate_user_stories",
+        role=ModelRole.STRUCTURED, max_tokens=2048,
+        run_id=state.get("run_id"), node_name="generate_user_stories",
     )
     return {"user_stories": result.model_dump(), "current_node": "generate_user_stories"}
 
@@ -122,7 +127,8 @@ async def generate_backlog_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=BacklogItems,
-        role=ModelRole.STRUCTURED, run_id=state.get("run_id"), node_name="generate_backlog",
+        role=ModelRole.STRUCTURED, max_tokens=1024,
+        run_id=state.get("run_id"), node_name="generate_backlog",
     )
     return {"backlog_items": result.model_dump(), "current_node": "generate_backlog"}
 
@@ -142,7 +148,8 @@ async def generate_test_cases_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=TestCases,
-        role=ModelRole.STRUCTURED, run_id=state.get("run_id"), node_name="generate_test_cases",
+        role=ModelRole.STRUCTURED, max_tokens=2048,
+        run_id=state.get("run_id"), node_name="generate_test_cases",
     )
     return {"test_cases": result.model_dump(), "current_node": "generate_test_cases"}
 
@@ -160,7 +167,8 @@ async def generate_risks_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=Risks,
-        role=ModelRole.STRUCTURED, run_id=state.get("run_id"), node_name="generate_risks",
+        role=ModelRole.STRUCTURED, max_tokens=1500,
+        run_id=state.get("run_id"), node_name="generate_risks",
     )
     return {"risks": result.model_dump(), "current_node": "generate_risks"}
 
@@ -176,7 +184,8 @@ async def generate_architecture_node(state: WorkflowState) -> dict[str, Any]:
     )
     result = await generate_structured(
         messages=messages, response_model=Architecture,
-        role=ModelRole.SYNTHESIS, run_id=state.get("run_id"), node_name="generate_architecture",
+        role=ModelRole.SYNTHESIS, max_tokens=1500,
+        run_id=state.get("run_id"), node_name="generate_architecture",
     )
     return {"architecture": result.model_dump(), "current_node": "generate_architecture"}
 
@@ -213,7 +222,8 @@ async def consistency_check_node(state: WorkflowState) -> dict[str, Any]:
     messages = get_prompt("consistency_check").build_messages(summary=json.dumps(summary, indent=2))
     result = await generate_structured(
         messages=messages, response_model=ConsistencyResult,
-        role=ModelRole.SYNTHESIS, run_id=state.get("run_id"), node_name="consistency_check",
+        role=ModelRole.SYNTHESIS, max_tokens=512,
+        run_id=state.get("run_id"), node_name="consistency_check",
     )
     log.info("consistency_result", is_consistent=result.is_consistent, issues=len(result.issues))
     return {"consistency_issues": result.issues, "current_node": "consistency_check"}
