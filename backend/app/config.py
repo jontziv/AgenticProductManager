@@ -30,9 +30,9 @@ class Settings(BaseSettings):
 
     # Model routing defaults
     groq_model_fast: str = "llama-3.1-8b-instant"
-    groq_model_structured: str = "llama-3.3-70b-versatile"
-    groq_model_synthesis: str = "llama-3.3-70b-versatile"
-    groq_model_eval: str = "llama-3.3-70b-versatile"
+    groq_model_structured: str = "llama-3.1-8b-instant"
+    groq_model_synthesis: str = "llama-3.1-8b-instant"
+    groq_model_eval: str = "llama-3.1-8b-instant"
     groq_model_audio: str = "whisper-large-v3-turbo"
     groq_model_audio_fallback: str = "whisper-large-v3"
 

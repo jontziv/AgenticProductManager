@@ -205,13 +205,9 @@ PROMPTS: dict[str, PromptTemplate] = {
         system=_PM_CONTEXT,
         user_template=(
             "Check cross-artifact consistency. Return issues (list of strings) and is_consistent (bool).\n\n"
-            "Problem framing: {problem_framing}\n"
-            "Personas: {personas}\n"
-            "MVP scope: {mvp_scope}\n"
-            "User stories count: {story_count}\n"
-            "Metrics: {metrics}\n\n"
-            "Check: do stories map to personas? Do features map to scope? "
-            "Do metrics connect to goals? Are there contradictions?"
+            "Artifact summary:\n{summary}\n\n"
+            "Check: do story_epics map to feature_ids? Do persona_roles align with story content? "
+            "Do metric_names connect to goals? Are there contradictions or obvious gaps?"
         ),
     ),
 }

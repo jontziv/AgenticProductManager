@@ -182,7 +182,7 @@ async def generate_architecture_node(state: WorkflowState) -> dict[str, Any]:
 
 
 async def consistency_check_node(state: WorkflowState) -> dict[str, Any]:
-    """Cross-artifact consistency check using synthesis model."""
+    """Cross-artifact consistency check — uses compact summary to minimise tokens."""
     from pydantic import BaseModel as BM
 
     class ConsistencyResult(BM):
@@ -192,13 +192,25 @@ async def consistency_check_node(state: WorkflowState) -> dict[str, Any]:
     log = logger.bind(run_id=state.get("run_id"), node="consistency_check")
     log.info("node_start")
 
-    messages = get_prompt("consistency_check").build_messages(
-        problem_framing=json.dumps(state.get("problem_framing", {})),
-        personas=json.dumps(state.get("personas", {})),
-        mvp_scope=json.dumps(state.get("mvp_scope", {})),
-        story_count=len(state.get("user_stories", {}).get("stories", [])),
-        metrics=json.dumps(state.get("success_metrics", {})),
-    )
+    # Build a compact summary instead of dumping full artifact JSON.
+    # Full dumps were ~3k input tokens; this is ~300.
+    pf = state.get("problem_framing", {})
+    personas = state.get("personas", {}).get("personas", [])
+    scope = state.get("mvp_scope", {})
+    stories = state.get("user_stories", {}).get("stories", [])
+    metrics_data = state.get("success_metrics", {}).get("metrics", [])
+
+    summary = {
+        "problem_statement": (pf.get("problem_statement", "") or "")[:200],
+        "goals": [(g[:80] if isinstance(g, str) else str(g)[:80]) for g in (pf.get("goals") or [])],
+        "persona_roles": [p.get("role", "") for p in personas],
+        "feature_ids": [f.get("id") for f in (scope.get("core_features") or [])],
+        "story_count": len(stories),
+        "story_epics": list({s.get("epic", "") for s in stories}),
+        "metric_names": [m.get("metric_name", "") for m in metrics_data],
+    }
+
+    messages = get_prompt("consistency_check").build_messages(summary=json.dumps(summary, indent=2))
     result = await generate_structured(
         messages=messages, response_model=ConsistencyResult,
         role=ModelRole.SYNTHESIS, run_id=state.get("run_id"), node_name="consistency_check",

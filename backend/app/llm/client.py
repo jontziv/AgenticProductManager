@@ -20,9 +20,13 @@ logger = structlog.get_logger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
-# Retry config
-MAX_RETRIES = 3
+# Retry config — only for genuine transient 5xx errors.
+# Rate limit errors (429) are caught separately and never retried.
+# instructor has its own internal retry loop for schema validation; we cap it at
+# 1 to prevent silent token multiplication when the model produces invalid JSON.
+MAX_RETRIES = 2
 RETRY_BACKOFF_BASE = 1.5  # seconds
+INSTRUCTOR_MAX_RETRIES = 1
 
 
 @lru_cache(maxsize=1)
@@ -56,7 +60,9 @@ async def generate_structured(
         try:
             t0 = time.perf_counter()
 
-            # instructor runs synchronously — run in thread pool
+            # instructor runs synchronously — run in thread pool.
+            # max_retries=1 caps instructor's internal schema-validation retry loop
+            # so a single malformed response doesn't silently burn 3x the tokens.
             client = _get_instructor_client()
             result = await asyncio.to_thread(
                 client.chat.completions.create,
@@ -65,6 +71,7 @@ async def generate_structured(
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                max_retries=INSTRUCTOR_MAX_RETRIES,
             )
 
             duration_ms = (time.perf_counter() - t0) * 1000

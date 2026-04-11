@@ -13,18 +13,12 @@ from app.graph.state import WorkflowState
 from app.llm.client import generate_structured, transcribe_audio as _transcribe
 from app.llm.routing import ModelRole
 from app.prompts.registry import get_prompt
-from pydantic import BaseModel
+from pydantic import BaseModel  # used by ClassificationResult
 
 logger = structlog.get_logger(__name__)
 
 
-# ── Pydantic schemas for node outputs ─────────────────────────────────────────
-
-class MissingInfoResult(BaseModel):
-    missing_fields: list[str]
-    can_proceed: bool
-    assumptions_to_make: list[str]
-
+# ── Pydantic schemas for LLM node outputs ────────────────────────────────────
 
 class ClassificationResult(BaseModel):
     idea_type: str
@@ -32,9 +26,25 @@ class ClassificationResult(BaseModel):
     rationale: str
 
 
-class PatternResult(BaseModel):
-    selected_pattern: str
-    pattern_rationale: str
+# ── Deterministic pattern lookup (no LLM call) ────────────────────────────────
+
+_PATTERN_MAP: dict[str, str] = {
+    "new_product": "saas_webapp",
+    "feature_addition": "saas_webapp",
+    "platform_improvement": "api_first",
+    "internal_tool": "internal_tool",
+    "api_product": "api_first",
+    "marketplace": "marketplace",
+}
+
+_PATTERN_RATIONALE: dict[str, str] = {
+    "saas_webapp": "Standard SaaS web application pattern for consumer/B2B products",
+    "api_first": "API-first pattern for developer products and platform improvements",
+    "internal_tool": "Internal tooling pattern with minimal external dependencies",
+    "marketplace": "Two-sided marketplace pattern with buyer/seller flows",
+    "mobile_first": "Mobile-native pattern for consumer mobile products",
+    "data_platform": "Data platform pattern for analytics and reporting products",
+}
 
 
 # ── Nodes ─────────────────────────────────────────────────────────────────────
@@ -116,40 +126,30 @@ async def transcribe_audio_node(state: WorkflowState) -> dict[str, Any]:
 
 
 async def detect_missing_info_node(state: WorkflowState) -> dict[str, Any]:
-    """Identify gaps and surface them as assumptions. Never blocks execution."""
+    """Identify gaps deterministically — no LLM call.
+
+    Form validation already ensures title, business_idea, target_users, and
+    raw_requirements are present. This node checks optional supporting fields
+    and surfaces any gaps as advisory assumptions only. Execution always proceeds.
+    """
     log = logger.bind(run_id=state.get("run_id"), node="detect_missing_info")
     log.info("node_start")
 
     brief = state.get("extracted_brief", {})
-    submission_text = json.dumps({
-        "business_idea": brief.get("business_idea"),
-        "target_users": brief.get("target_users"),
-        "raw_requirements": brief.get("raw_requirements"),
-        "meeting_notes": brief.get("meeting_notes"),
-        "constraints": brief.get("constraints"),
-        "timeline": brief.get("timeline"),
-    }, indent=2)
+    optional_fields = {
+        "meeting_notes": "No meeting notes provided — generating from idea description only",
+        "constraints": "No constraints specified — assuming standard budget/timeline",
+        "timeline": "No timeline specified — treating as open-ended",
+        "assumptions": "No explicit assumptions provided",
+    }
+    missing = [k for k, _ in optional_fields.items() if not brief.get(k) or not str(brief[k]).strip()]
+    flags = [optional_fields[k] for k in missing]
 
-    prompt = get_prompt("detect_missing_info")
-    messages = prompt.build_messages(submission=submission_text)
-
-    result = await generate_structured(
-        messages=messages,
-        response_model=MissingInfoResult,
-        role=ModelRole.FAST,
-        run_id=state.get("run_id"),
-        node_name="detect_missing_info",
-    )
-
-    log.info(
-        "missing_info_result",
-        missing=result.missing_fields,
-        can_proceed=True,  # always proceed; flags are advisory assumptions only
-    )
+    log.info("missing_info_result", missing_count=len(missing), can_proceed=True)
 
     return {
-        "missing_info_flags": result.missing_fields,
-        "can_proceed": True,  # gate removed — form validation guarantees minimum data
+        "missing_info_flags": flags,
+        "can_proceed": True,
         "current_node": "detect_missing_info",
     }
 
@@ -181,27 +181,22 @@ async def classify_idea_node(state: WorkflowState) -> dict[str, Any]:
 
 
 async def choose_pattern_node(state: WorkflowState) -> dict[str, Any]:
-    """Choose product pattern based on idea classification."""
+    """Choose product pattern via deterministic lookup — no LLM call.
+
+    The idea_classification from the previous node is sufficient to select the
+    right pattern. An LLM call here adds latency and tokens with no quality gain.
+    """
     log = logger.bind(run_id=state.get("run_id"), node="choose_pattern")
     log.info("node_start")
 
-    brief = state.get("extracted_brief", {})
-    prompt = get_prompt("choose_pattern")
-    messages = prompt.build_messages(
-        idea_type=state.get("idea_classification", "new_product"),
-        business_idea=brief.get("business_idea", ""),
-    )
+    idea_type = state.get("idea_classification", "new_product")
+    pattern = _PATTERN_MAP.get(idea_type, "saas_webapp")
+    rationale = _PATTERN_RATIONALE.get(pattern, "Default SaaS web application pattern")
 
-    result = await generate_structured(
-        messages=messages,
-        response_model=PatternResult,
-        role=ModelRole.FAST,
-        run_id=state.get("run_id"),
-        node_name="choose_pattern",
-    )
+    log.info("pattern_selected", idea_type=idea_type, pattern=pattern)
 
     return {
-        "selected_pattern": result.selected_pattern,
-        "pattern_rationale": result.pattern_rationale,
+        "selected_pattern": pattern,
+        "pattern_rationale": rationale,
         "current_node": "choose_pattern",
     }
