@@ -29,12 +29,12 @@ class Settings(BaseSettings):
     groq_base_url: str = "https://api.groq.com"
 
     # Model routing defaults
-    # llama-3.1-8b-instant free tier: 6,000 TPM / 500,000 TPD
-    # TPM rate limits handled by client.py TPM retry logic (auto-sleep + retry)
-    groq_model_fast: str = "llama-3.1-8b-instant"
-    groq_model_structured: str = "llama-3.1-8b-instant"
-    groq_model_synthesis: str = "llama-3.1-8b-instant"
-    groq_model_eval: str = "llama-3.1-8b-instant"
+    # llama3-8b-8192 free tier: 30,000 TPM / 500,000 TPD  ← use this
+    # llama-3.1-8b-instant free tier: 6,000 TPM / 500,000 TPD  ← too low, causes cascading 429s
+    groq_model_fast: str = "llama3-8b-8192"
+    groq_model_structured: str = "llama3-8b-8192"
+    groq_model_synthesis: str = "llama3-8b-8192"
+    groq_model_eval: str = "llama3-8b-8192"
     groq_model_audio: str = "whisper-large-v3-turbo"
     groq_model_audio_fallback: str = "whisper-large-v3"
 
