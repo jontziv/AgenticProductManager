@@ -97,6 +97,11 @@ async def generate_structured(
     - TPD (tokens per day): fail immediately — daily quota cannot be recovered by waiting.
     - TPM (tokens per minute): wait the reported cooldown, retry up to TPM_MAX_ATTEMPTS.
     - 5xx server errors: exponential backoff, up to MAX_SERVER_RETRIES.
+
+    Inter-call throttle:
+    - After every successful call, sleep GROQ_INTER_CALL_SLEEP seconds (default 10s).
+    - 11 pipeline nodes × ~4-5k tokens each ≈ 50k tokens/run.
+    - At 30k TPM, spacing calls 10s apart keeps any 60s window under the limit.
     """
     model = get_model(role)
     log = logger.bind(model=model, node=node_name, run_id=run_id)
@@ -128,6 +133,13 @@ async def generate_structured(
                     tpm_attempt=tpm_attempt,
                     duration_ms=round(duration_ms, 1),
                 )
+
+                # Inter-call throttle: spread sequential nodes across the TPM window.
+                sleep_s = get_settings().groq_inter_call_sleep
+                if sleep_s > 0:
+                    log.debug("inter_call_sleep", seconds=sleep_s, node=node_name)
+                    await asyncio.sleep(sleep_s)
+
                 return result
 
             except RateLimitError as exc:

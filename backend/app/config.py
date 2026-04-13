@@ -29,14 +29,19 @@ class Settings(BaseSettings):
     groq_base_url: str = "https://api.groq.com"
 
     # Model routing defaults
-    # llama3-8b-8192 free tier: 30,000 TPM / 500,000 TPD  ← use this
-    # llama-3.1-8b-instant free tier: 6,000 TPM / 500,000 TPD  ← too low, causes cascading 429s
-    groq_model_fast: str = "llama3-8b-8192"
-    groq_model_structured: str = "llama3-8b-8192"
-    groq_model_synthesis: str = "llama3-8b-8192"
-    groq_model_eval: str = "llama3-8b-8192"
+    # meta-llama/llama-4-scout-17b-16e-instruct: 30,000 TPM / 500,000 TPD  ← use this
+    # llama3-8b-8192: deprecated Aug 2025
+    # llama-3.1-8b-instant: 6,000 TPM — too low, cascading 429s across 11 sequential nodes
+    groq_model_fast: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    groq_model_structured: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    groq_model_synthesis: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    groq_model_eval: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     groq_model_audio: str = "whisper-large-v3-turbo"
     groq_model_audio_fallback: str = "whisper-large-v3"
+
+    # Throttle: sleep this many seconds after each LLM call to stay within TPM window.
+    # 11 nodes × ~4-5k tokens each ≈ 50k tokens/run; 30k TPM window = ~10s spacing needed.
+    groq_inter_call_sleep: float = 10.0
 
     # ── LangSmith (optional) ──────────────────────────────────────────────────
     langsmith_enabled: bool = False
