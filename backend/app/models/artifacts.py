@@ -157,6 +157,15 @@ class Risk(BaseModel):
     owner: str
     linked_artifact: str | None = None
 
+    @field_validator("linked_artifact", mode="before")
+    @classmethod
+    def coerce_linked_artifact(cls, v: object) -> str | None:
+        """LLM sometimes returns a list for linked_artifact — join into one string."""
+        if isinstance(v, list):
+            parts = [str(i) for i in v if i is not None]
+            return ", ".join(parts) if parts else None
+        return v if v else None
+
 
 class Risks(BaseModel):
     risks: list[Risk]

@@ -22,17 +22,19 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL_FAST
-        value: llama-3.1-8b-instant
+        value: meta-llama/llama-4-scout-17b-16e-instruct
       - key: GROQ_MODEL_STRUCTURED
-        value: llama-3.3-70b-versatile
+        value: meta-llama/llama-4-scout-17b-16e-instruct
       - key: GROQ_MODEL_SYNTHESIS
-        value: llama-3.3-70b-versatile
+        value: meta-llama/llama-4-scout-17b-16e-instruct
       - key: GROQ_MODEL_EVAL
-        value: llama-3.3-70b-versatile
+        value: meta-llama/llama-4-scout-17b-16e-instruct
       - key: GROQ_MODEL_AUDIO
         value: whisper-large-v3-turbo
       - key: GROQ_MODEL_AUDIO_FALLBACK
         value: whisper-large-v3
+      - key: GROQ_INTER_CALL_SLEEP
+        value: "10"
       - key: LANGSMITH_ENABLED
         value: "false"
       - key: OTEL_ENABLED
