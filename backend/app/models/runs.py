@@ -70,6 +70,17 @@ class RunResponse(BaseModel):
     artifacts: list[Any] = []
     latest_qa_report: dict[str, Any] | None = None
 
+    @staticmethod
+    def _serialize_qa_report_static(qa_report: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Convert QA report dict through QAReportResponse to coerce Decimal → float."""
+        if not qa_report:
+            return None
+        from app.models.qa import QAReportResponse as _QARep  # local to avoid circular
+        try:
+            return _QARep.from_db(qa_report).model_dump(mode="json")
+        except Exception:
+            return qa_report
+
     @classmethod
     def from_db(
         cls,
@@ -111,7 +122,7 @@ class RunResponse(BaseModel):
             updated_at=row["updated_at"],
             completed_at=row.get("completed_at"),
             artifacts=[ArtifactResponse.from_db(a) for a in (artifacts or [])],
-            latest_qa_report=qa_report,
+            latest_qa_report=cls._serialize_qa_report_static(qa_report),
         )
 
 

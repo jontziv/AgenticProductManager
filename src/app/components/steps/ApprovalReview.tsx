@@ -81,7 +81,7 @@ export function ApprovalReview() {
                     <div className="text-muted-foreground">QA Score</div>
                     <div className="font-medium">
                       {state.qaReport
-                        ? `${(state.qaReport.pass_rate ?? 0).toFixed(0)}%`
+                        ? `${Number(state.qaReport.pass_rate ?? 0).toFixed(0)}%`
                         : "—"}
                     </div>
                   </div>
