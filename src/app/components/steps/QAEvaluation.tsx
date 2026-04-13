@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useWorkflow } from "../../context/WorkflowContext";
+import { runsApi } from "../../api/runs";
 import { evaluateArtifacts } from "../../utils/evaluators";
 import { EvaluationReport } from "../../types/evaluation";
 import {
@@ -11,6 +12,7 @@ import {
   AlertTriangle,
   Loader2,
   ShieldCheck,
+  RefreshCw,
   ChevronDown,
   ChevronRight
 } from "lucide-react";
@@ -22,6 +24,9 @@ export function QAEvaluation() {
   const [isEvaluating, setIsEvaluating] = useState(true);
   const [report, setReport] = useState<EvaluationReport | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
+  const [overridePending, setOverridePending] = useState(false);
 
   useEffect(() => {
     if (!state.run) {
@@ -52,6 +57,21 @@ export function QAEvaluation() {
   const handleBack = () => {
     setCurrentStep(3);
     navigate(`/runs/${runId}/architecture`);
+  };
+
+  const handleRegenerate = async () => {
+    if (!runId) return;
+    setIsRegenerating(true);
+    setRegenerateError(null);
+    try {
+      await runsApi.regenerate(runId);
+      // Return to the first step; WorkflowLayout will reload the run once
+      // the worker picks up the new job.
+      navigate(`/runs/${runId}/scope`);
+    } catch (err) {
+      setRegenerateError(err instanceof Error ? err.message : "Failed to queue regeneration");
+      setIsRegenerating(false);
+    }
   };
 
   const toggleCategory = (categoryName: string) => {
@@ -288,15 +308,54 @@ export function QAEvaluation() {
           <section className="rounded-lg border border-destructive bg-destructive/5 p-6">
             <div className="flex items-start gap-3">
               <XCircle className="h-6 w-6 text-destructive shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <h3 className="text-destructive mb-2">Action Required</h3>
-                <p className="text-sm mb-3">
-                  {report.criticalIssues} critical {report.criticalIssues === 1 ? "issue" : "issues"} must be resolved before proceeding to export.
-                  Please review the failed checks above and regenerate artifacts or manually edit the output.
+                <p className="text-sm mb-4">
+                  {report.criticalIssues} critical {report.criticalIssues === 1 ? "issue" : "issues"} detected.
+                  Regenerate to re-run the full pipeline, or proceed anyway if you want to review and approve as-is.
                 </p>
-                <button className="text-sm px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity">
-                  Regenerate Artifacts
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleRegenerate}
+                    disabled={isRegenerating}
+                    className="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isRegenerating ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    {isRegenerating ? "Queuing…" : "Regenerate Artifacts"}
+                  </button>
+                  {!overridePending ? (
+                    <button
+                      onClick={() => setOverridePending(true)}
+                      className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+                    >
+                      Proceed anyway
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-background px-3 py-1.5">
+                      <span className="text-sm text-muted-foreground">Override QA block?</span>
+                      <button
+                        onClick={handleContinue}
+                        className="text-sm font-medium text-destructive hover:opacity-80 transition-opacity"
+                      >
+                        Yes, continue
+                      </button>
+                      <span className="text-muted-foreground/40">·</span>
+                      <button
+                        onClick={() => setOverridePending(false)}
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {regenerateError && (
+                  <p className="mt-3 text-sm text-destructive">{regenerateError}</p>
+                )}
               </div>
             </div>
           </section>
@@ -342,10 +401,10 @@ export function QAEvaluation() {
         </button>
         <button
           onClick={handleContinue}
-          disabled={!canProceed}
+          disabled={!canProceed && !overridePending}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {canProceed ? "Proceed to Approval" : "Fix Issues to Continue"}
+          {canProceed ? "Proceed to Approval" : overridePending ? "Continue (Override)" : "Fix Issues to Continue"}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>

@@ -124,6 +124,25 @@ async def submit_approval(
     return ApprovalResponse.from_db(approval)
 
 
+@router.post("/{run_id}/regenerate", status_code=status.HTTP_202_ACCEPTED)
+async def regenerate_run(run_id: str, current_user: CurrentUser) -> dict:
+    run = await RunsDB.get(run_id, current_user.user_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    await RunsDB.update_status(run_id, "pending")
+
+    job = await JobQueue.enqueue(
+        run_id=run_id,
+        user_id=current_user.user_id,
+        job_type=JobType.ORCHESTRATE_RUN,
+        payload={"run_id": run_id},
+    )
+
+    logger.info("run_regeneration_queued", run_id=run_id, user_id=current_user.user_id)
+    return {"job_id": str(job["id"])}
+
+
 @router.get("/{run_id}/approvals", response_model=list[ApprovalResponse])
 async def list_approvals(run_id: str, current_user: CurrentUser) -> list[ApprovalResponse]:
     run = await RunsDB.get(run_id, current_user.user_id)

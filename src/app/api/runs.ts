@@ -38,6 +38,10 @@ export const runsApi = {
     return apiClient.get<ArtifactRecord>(`/runs/${runId}/artifacts/${artifactType}`);
   },
 
+  regenerate(runId: string): Promise<{ job_id: string }> {
+    return apiClient.post<{ job_id: string }>(`/runs/${runId}/regenerate`);
+  },
+
   regenerateArtifact(runId: string, artifactType: ArtifactType): Promise<{ job_id: string }> {
     return apiClient.post<{ job_id: string }>(
       `/runs/${runId}/artifacts/${artifactType}/regenerate`,
